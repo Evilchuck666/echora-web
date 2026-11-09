@@ -124,7 +124,7 @@ Use Bun for everything (`bun install`, `bun run <script>`, `bunx`), not npm, pnp
 
 ## 🚧 Status
 
-Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in works, with the session shared and refreshed safely across tabs; the next steps are browsing the library and the player.
+Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in and browsing the library (artists, albums and tracks, with search and infinite scroll) work; the player is next.
 
 ---
 

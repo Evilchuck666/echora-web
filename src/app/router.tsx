@@ -1,7 +1,9 @@
 import { createBrowserRouter } from 'react-router'
 import { RequireAuth } from '../auth/RequireAuth'
 import { AppLayout } from '../components/AppLayout'
-import { HomePage } from '../pages/HomePage'
+import { AlbumPage } from '../pages/AlbumPage'
+import { ArtistPage } from '../pages/ArtistPage'
+import { ArtistsPage } from '../pages/ArtistsPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
@@ -12,7 +14,11 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <AppLayout />,
-        children: [{ path: '/', element: <HomePage /> }],
+        children: [
+          { path: '/', element: <ArtistsPage /> },
+          { path: '/artists/:id', element: <ArtistPage /> },
+          { path: '/albums/:id', element: <AlbumPage /> },
+        ],
       },
     ],
   },

@@ -4,7 +4,8 @@ import type { paths } from './schema'
 
 // Typed client for the Echora API. The types in schema.d.ts are generated: run `bun run api:types` when the API changes.
 // JSON-LD is required for collections to include `totalItems` and the pagination links in `view`.
-export const api = createClient<paths>({
+// The second type argument picks the JSON-LD shapes out of the generated types.
+export const api = createClient<paths, 'application/ld+json'>({
   baseUrl: import.meta.env.VITE_API_URL,
   headers: { Accept: 'application/ld+json' },
 })

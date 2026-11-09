@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router'
+import { Link, Outlet, ScrollRestoration } from 'react-router'
 import { signOut } from '../auth/session'
 import { useCurrentUser } from '../auth/useCurrentUser'
 
@@ -8,7 +8,7 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-800 bg-neutral-950/90 px-4 py-3 backdrop-blur">
         <Link to="/" className="text-lg font-semibold tracking-tight">
           Echora
         </Link>
@@ -20,6 +20,8 @@ export function AppLayout() {
         </div>
       </header>
       <Outlet />
+      {/* Back and forward return to where the page was scrolled; the lists come from the query cache meanwhile. */}
+      <ScrollRestoration />
     </div>
   )
 }
