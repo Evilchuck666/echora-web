@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { Cover } from '../components/Cover'
 import { AlbumCard, ArtistCard } from '../components/LibraryCards'
@@ -6,6 +6,7 @@ import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
 import { formatDuration, plural } from '../library/format'
 import { SEARCH_LIMIT, useSearch } from '../library/queries'
+import { useLeaveSearch } from '../library/search'
 import type { SearchTrack } from '../library/types'
 
 /** How many results each section shows before "Show all": one row of cards at full width. */
@@ -18,13 +19,22 @@ export function SearchPage() {
   const [searchParams] = useSearchParams()
   const query = (searchParams.get('q') ?? '').trim()
   const search = useSearch(query)
+  const leaveSearch = useLeaveSearch()
+  const left = useRef(false)
+
+  // /search, /search?q= or a blank query (typed or bookmarked): not a page of its own, go back to the last valid
+  // one. Once only: React's development mode runs effects twice, and going back twice would skip a page.
+  useEffect(() => {
+    if (query) {
+      left.current = false
+    } else if (!left.current) {
+      left.current = true
+      leaveSearch()
+    }
+  }, [query, leaveSearch])
 
   if (!query) {
-    return (
-      <main className="mx-auto w-full max-w-6xl px-4 py-16 text-center text-neutral-400">
-        Search your library: artists, albums and tracks.
-      </main>
-    )
+    return null
   }
 
   const data = search.data
