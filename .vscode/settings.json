@@ -1,0 +1,31 @@
+{
+  // Use the project's TypeScript (node_modules) instead of the one bundled with the editor, so both agree with `tsc -b`.
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+
+  // Tailwind CSS 4 directives (@import "tailwindcss", @theme, @utility, @apply...) are valid in the Tailwind language mode,
+  // where the built-in CSS linter doesn't flag them as unknown at-rules.
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  // Class suggestions inside className="..." strings.
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // NPM Scripts view and script tasks run through Bun.
+  "npm.packageManager": "bun",
+
+  "files.watcherExclude": {
+    "**/dist/**": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "bun.lock": true
+  }
+}

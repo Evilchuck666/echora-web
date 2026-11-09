@@ -1,0 +1,15 @@
+{
+  // Uses the editor's built-in JavaScript debugger with Google Chrome. The debug browser runs with its own profile:
+  // if API calls fail, accept the https://localhost certificate there once too (see CLAUDE.md, "Local development").
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "Dev server"
+    }
+  ]
+}

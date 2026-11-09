@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install dependencies",
+      "type": "shell",
+      "command": "bun install",
+      "problemMatcher": []
+    },
+    {
+      // Background task: ready once Vite prints "ready in", so the debugger can open the browser after it.
+      "label": "Dev server",
+      "type": "shell",
+      "command": "bun run dev",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^\\b$" },
+        "background": {
+          "activatesOnStart": true,
+          "beginsPattern": "VITE v",
+          "endsPattern": "ready in"
+        }
+      }
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "bun run build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "bun run lint",
+      "problemMatcher": ["$eslint-stylish"]
+    }
+  ]
+}
