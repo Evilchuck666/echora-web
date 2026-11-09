@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { api, unwrap } from '../api/client'
 
 // Collections come 30 items per page; `view.next` links to the next one and is absent on the last page.
@@ -16,12 +16,11 @@ export function nextPage(view?: { next?: string | null }): number | undefined {
 const artistIri = (id: string) => `/api/artists/${id}`
 const albumIri = (id: string) => `/api/albums/${id}`
 
-/** Artists by name; `name` filters by a part of it, case-insensitive. */
-export function useArtists(name: string) {
+/** Every artist, by name. */
+export function useArtists() {
   return useInfiniteQuery({
-    queryKey: ['artists', { name }],
-    queryFn: ({ pageParam }) =>
-      unwrap(api.GET('/api/artists', { params: { query: { page: pageParam, name: name || undefined } } })),
+    queryKey: ['artists'],
+    queryFn: ({ pageParam }) => unwrap(api.GET('/api/artists', { params: { query: { page: pageParam } } })),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => nextPage(lastPage.view),
   })
@@ -60,5 +59,21 @@ export function useAlbumTracks(albumId: string) {
       unwrap(api.GET('/api/tracks', { params: { query: { page: pageParam, album: albumIri(albumId) } } })),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => nextPage(lastPage.view),
+  })
+}
+
+/** At most this many artists, albums and tracks come back from a search: the API's maximum. */
+export const SEARCH_LIMIT = 50
+
+/**
+ * Artists, albums and tracks matching `query`, ranked by the API (every word, in any order, ignoring case and
+ * accents). While a new query loads, the previous results stay on screen.
+ */
+export function useSearch(query: string) {
+  return useQuery({
+    queryKey: ['search', query],
+    queryFn: () => unwrap(api.GET('/api/search', { params: { query: { q: query, limit: SEARCH_LIMIT } } })),
+    enabled: query !== '',
+    placeholderData: keepPreviousData,
   })
 }

@@ -26,10 +26,9 @@ There are no tests yet.
 - `src/app/`: app-wide setup: `router.tsx` (routes), `query-client.ts` (also clears the cache on sign-out).
 - `src/api/`: `client.ts` (the typed `openapi-fetch` client, its authentication middleware, and `unwrap()` to turn a call into data or an `ApiError` for `queryFn`) and `schema.d.ts` (generated, committed so builds don't need the API; never edit it by hand).
 - `src/auth/`: the session. `tokens.ts` keeps the tokens in `localStorage` (shared by every tab) and exposes `useSession` (Zustand); `session.ts` signs in and out and refreshes the JWT, single-flight within a tab and under a Web Lock across tabs, re-reading the tokens once the lock is held. Signing out takes the same lock, so it invalidates the current refresh token. `RequireAuth` guards the signed-in routes.
-- `src/library/`: the music library: `queries.ts` (TanStack Query hooks for artists, albums and tracks), `types.ts` (aliases of the generated JSON-LD schemas), `format.ts` (durations, plurals).
-- `src/components/`: shared components: `AppLayout` (the frame of signed-in pages, with `ScrollRestoration`), `Cover` (album cover or placeholder), `ArtistImage` (round artist thumbnail or the initial), `InfiniteScrollTrigger`, `QueryError`, `Spinner`, `Breadcrumbs`.
-- `src/hooks/`: generic hooks (`useDebouncedValue`).
-- `src/pages/`: one component per route: `/` artists (search in `?q=`), `/artists/:id` its albums, `/albums/:id` its tracks, `/login`.
+- `src/library/`: the music library: `queries.ts` (TanStack Query hooks for artists, albums, tracks and the search), `types.ts` (aliases of the generated JSON-LD schemas), `format.ts` (durations, plurals).
+- `src/components/`: shared components: `AppLayout` (the frame of signed-in pages, with `ScrollRestoration`), `Cover` (album cover or placeholder), `ArtistImage` (round artist thumbnail or the initial), `LibraryCards` (`ArtistCard`, `AlbumCard`, typed by the fields they show so list and search results both fit), `SearchBox` (the header search: navigates from its change handler after a pause, not from an effect, and follows the URL while rendering), `InfiniteScrollTrigger`, `QueryError`, `Spinner`, `Breadcrumbs`.
+- `src/pages/`: one component per route: `/` artists, `/artists/:id` its albums, `/albums/:id` its tracks, `/search?q=` the global search (`GET /api/search`, `limit=50`, sections folded until "Show all"), `/login`.
 
 Conventions:
 

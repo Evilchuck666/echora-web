@@ -1,13 +1,12 @@
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { ArtistImage } from '../components/ArtistImage'
 import { Breadcrumbs } from '../components/Breadcrumbs'
-import { Cover } from '../components/Cover'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
+import { AlbumCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
 import { plural } from '../library/format'
 import { useArtist, useArtistAlbums } from '../library/queries'
-import type { Album } from '../library/types'
 
 export function ArtistPage() {
   const { id = '' } = useParams()
@@ -64,19 +63,5 @@ export function ArtistPage() {
         </>
       )}
     </main>
-  )
-}
-
-function AlbumCard({ album }: { album: Album }) {
-  const title = album.title ?? 'Unknown album'
-
-  return (
-    <Link to={`/albums/${album.id}`} className="group block">
-      <Cover url={album.coverUrl} alt={`Cover of ${title}`} className="w-full rounded-md group-hover:opacity-80" />
-      <p className="mt-2 truncate font-medium group-hover:text-violet-300" title={title}>
-        {title}
-      </p>
-      <p className="text-sm text-neutral-400">{album.year ?? 'Unknown year'}</p>
-    </Link>
   )
 }

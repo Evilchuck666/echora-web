@@ -1,6 +1,7 @@
 import { Link, Outlet, ScrollRestoration } from 'react-router'
 import { signOut } from '../auth/session'
 import { useCurrentUser } from '../auth/useCurrentUser'
+import { SearchBox } from './SearchBox'
 
 /** The frame of every signed-in page. */
 export function AppLayout() {
@@ -12,8 +13,11 @@ export function AppLayout() {
         <Link to="/" className="text-lg font-semibold tracking-tight">
           Echora
         </Link>
-        <div className="flex items-center gap-4 text-sm">
-          {user && <span className="text-neutral-400">{user.username}</span>}
+        <div className="mx-4 max-w-md flex-1">
+          <SearchBox />
+        </div>
+        <div className="flex shrink-0 items-center gap-4 text-sm">
+          {user && <span className="hidden text-neutral-400 sm:inline">{user.username}</span>}
           <button type="button" onClick={() => void signOut()} className="text-neutral-300 hover:text-white">
             Sign out
           </button>

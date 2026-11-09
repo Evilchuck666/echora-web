@@ -6,6 +6,7 @@ import { ArtistPage } from '../pages/ArtistPage'
 import { ArtistsPage } from '../pages/ArtistsPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { SearchPage } from '../pages/SearchPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
           { path: '/', element: <ArtistsPage /> },
           { path: '/artists/:id', element: <ArtistPage /> },
           { path: '/albums/:id', element: <AlbumPage /> },
+          { path: '/search', element: <SearchPage /> },
         ],
       },
     ],
