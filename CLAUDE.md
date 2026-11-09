@@ -23,9 +23,13 @@ There are no tests yet.
 ## Layout
 
 - `src/main.tsx`: mounts the providers (TanStack Query, React Router).
-- `src/app/`: app-wide setup: `router.tsx` (routes), `query-client.ts`.
-- `src/api/`: `client.ts` (the typed `openapi-fetch` client) and `schema.d.ts` (generated, committed so builds don't need the API; never edit it by hand).
+- `src/app/`: app-wide setup: `router.tsx` (routes), `query-client.ts` (also clears the cache on sign-out).
+- `src/api/`: `client.ts` (the typed `openapi-fetch` client, its authentication middleware, and `unwrap()` to turn a call into data or an `ApiError` for `queryFn`) and `schema.d.ts` (generated, committed so builds don't need the API; never edit it by hand).
+- `src/auth/`: the session. `tokens.ts` keeps the tokens in `localStorage` (shared by every tab) and exposes `useSession` (Zustand); `session.ts` signs in and out and refreshes the JWT, single-flight within a tab and under a Web Lock across tabs, re-reading the tokens once the lock is held. `RequireAuth` guards the signed-in routes.
+- `src/components/`: shared components, such as `AppLayout` (the frame of signed-in pages).
 - `src/pages/`: one component per route.
+
+The API's OpenAPI document lists the refresh endpoint as `api_refresh_token` instead of `/api/token/refresh` (the firewall's `check_path` is a route name), so `session.ts` calls it with plain `fetch`. Once the API documents the path, it can use the typed client.
 - `.env` sets `VITE_API_URL` (the API origin, without `/api`, since the generated paths include it). Local overrides go in `.env.local` (git-ignored).
 
 ## Decided stack
