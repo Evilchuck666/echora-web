@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router'
+import { ArtistImage } from '../components/ArtistImage'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { Cover } from '../components/Cover'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
@@ -29,8 +30,16 @@ export function ArtistPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <Breadcrumbs items={[{ label: 'Artists', to: '/' }, { label: name }]} />
-      <h1 className="text-3xl font-semibold tracking-tight">{name || ' '}</h1>
-      <p className="mt-1 mb-6 text-sm text-neutral-400">{total !== undefined ? plural(total, 'album') : ' '}</p>
+      <header className="mb-8 flex items-center gap-5 sm:gap-6">
+        {artist.data && (
+          <ArtistImage url={artist.data.coverUrl} name={name} className="w-24 shrink-0 text-4xl shadow-lg sm:w-36 sm:text-6xl" />
+        )}
+        <div className="min-w-0">
+          <p className="text-xs font-medium tracking-wider text-neutral-400 uppercase">Artist</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">{name || ' '}</h1>
+          <p className="mt-1 text-sm text-neutral-400">{total !== undefined ? plural(total, 'album') : ' '}</p>
+        </div>
+      </header>
 
       {albums.isPending || artist.isPending ? (
         <div className="flex justify-center py-12">

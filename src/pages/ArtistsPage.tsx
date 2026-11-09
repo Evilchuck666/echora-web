@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { ArtistImage } from '../components/ArtistImage'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
@@ -54,7 +55,7 @@ export function ArtistsPage() {
         </p>
       ) : (
         <>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {members.map((artist) => (
               <li key={artist.id}>
                 <ArtistCard artist={artist} />
@@ -72,17 +73,11 @@ function ArtistCard({ artist }: { artist: Artist }) {
   const name = artist.name ?? 'Unknown artist'
 
   return (
-    <Link
-      to={`/artists/${artist.id}`}
-      className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 p-3 hover:border-neutral-600"
-    >
-      <span
-        aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-900/60 font-semibold text-violet-200"
-      >
-        {name.charAt(0).toUpperCase()}
-      </span>
-      <span className="truncate font-medium">{name}</span>
+    <Link to={`/artists/${artist.id}`} className="group block text-center">
+      <ArtistImage url={artist.coverUrl} name={name} className="w-full text-5xl group-hover:opacity-80" />
+      <p className="mt-2 truncate font-medium group-hover:text-violet-300" title={name}>
+        {name}
+      </p>
     </Link>
   )
 }

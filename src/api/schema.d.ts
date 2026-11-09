@@ -53,7 +53,7 @@ export interface paths {
         };
         /**
          * Returns the cover image of an album
-         * @description Returns the cover found in the album folder (folder, cover, front or album, in JPEG, PNG or WebP). Authenticate with a JWT, or call the coverUrl of the album as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.
+         * @description Returns the cover found in the album folder (folder, cover, front or album, in JPEG, PNG or WebP), or else downloaded from TheAudioDB (theaudiodb.com). Authenticate with a JWT, or call the coverUrl of the album as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.
          */
         get: operations["get_album_cover"];
         put?: never;
@@ -96,6 +96,26 @@ export interface paths {
          * @description Retrieves a Artist resource.
          */
         get: operations["api_artists_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns a thumbnail of an artist
+         * @description Returns a small square JPEG made from the image in the artist folder (artist or folder, in JPEG, PNG or WebP), or else from TheAudioDB (theaudiodb.com). Authenticate with a JWT, or call the coverUrl of the artist as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.
+         */
+        get: operations["get_artist_cover"];
         put?: never;
         post?: never;
         delete?: never;
@@ -158,6 +178,26 @@ export interface paths {
          * @description Returns a new JWT, and a refresh token to use for the next exchange.
          */
         post: operations["gesdinet_jwt_refresh_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves a Search resource.
+         * @description Retrieves a Search resource.
+         */
+        get: operations["api_search_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -252,9 +292,19 @@ export interface components {
         "Album-album.read": {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             artist?: components["schemas"]["Artist-album.read"];
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
+        "Album-search.read_artist.read_album.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            artist?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
         };
@@ -262,7 +312,7 @@ export interface components {
         "Album-track.read": {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             title?: string;
             year?: number | null;
@@ -271,7 +321,7 @@ export interface components {
         "Album-track.read_track.item": {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             title?: string;
             year?: number | null;
@@ -280,9 +330,19 @@ export interface components {
         "Album.jsonld-album.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
+        "Album.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            artist?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
         };
@@ -290,7 +350,7 @@ export interface components {
         "Album.jsonld-track.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             title?: string;
             year?: number | null;
@@ -299,7 +359,7 @@ export interface components {
         "Album.jsonld-track.read_track.item": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
-            /** @description Signed URL of the cover image, or null when the album folder has none; works without an Authorization header, e.g. as the src of an <img> */
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
             title?: string;
             year?: number | null;
@@ -314,6 +374,16 @@ export interface components {
         "Artist-artist.read": {
             /** Format: uuid */
             readonly id?: string;
+            /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist-search.read_artist.read_album.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -338,6 +408,16 @@ export interface components {
         "Artist.jsonld-artist.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
+            /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -435,6 +515,56 @@ export interface components {
             "@id": string;
             "@type": string;
         };
+        /** @description Searches the whole library at once. Every word of the query has to appear, in any order, ignoring case and accents. Artists match by name, albums by title or artist, tracks by title, artist or album. Each list is ranked by how well the item's own name matches, and holds at most `limit` items; the totals count every match. */
+        "Search-search.read_artist.read_album.read_track.read": {
+            /** @description The query, with its words separated by single spaces */
+            query?: string;
+            artists?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"][];
+            /** @description How many artists match, including the ones beyond the limit */
+            totalArtists?: number;
+            albums?: components["schemas"]["Album-search.read_artist.read_album.read_track.read"][];
+            /** @description How many albums match, including the ones beyond the limit */
+            totalAlbums?: number;
+            tracks?: components["schemas"]["Track-search.read_artist.read_album.read_track.read"][];
+            /** @description How many tracks match, including the ones beyond the limit */
+            totalTracks?: number;
+        };
+        /** @description Searches the whole library at once. Every word of the query has to appear, in any order, ignoring case and accents. Artists match by name, albums by title or artist, tracks by title, artist or album. Each list is ranked by how well the item's own name matches, and holds at most `limit` items; the totals count every match. */
+        "Search.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description The query, with its words separated by single spaces */
+            query?: string;
+            artists?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"][];
+            /** @description How many artists match, including the ones beyond the limit */
+            totalArtists?: number;
+            albums?: components["schemas"]["Album.jsonld-search.read_artist.read_album.read_track.read"][];
+            /** @description How many albums match, including the ones beyond the limit */
+            totalAlbums?: number;
+            tracks?: components["schemas"]["Track.jsonld-search.read_artist.read_album.read_track.read"][];
+            /** @description How many tracks match, including the ones beyond the limit */
+            totalTracks?: number;
+        };
+        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        "Track-search.read_artist.read_album.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album-search.read_artist.read_album.read_track.read"];
+            artist?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
+        };
         /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
         "Track-track.read": {
             /** Format: uuid */
@@ -471,6 +601,28 @@ export interface components {
             readonly genre?: string | null;
             /** @description Unsynchronised lyrics from the tags, lines separated by \n. */
             readonly lyrics?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
+        };
+        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        "Track.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album.jsonld-search.read_artist.read_album.read_track.read"];
+            artist?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
             /** @description Container format: "flac" or "mp3". */
             readonly format?: string;
             readonly mimeType?: string;
@@ -660,7 +812,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The album does not exist, has no cover, or its cover is missing from the library */
+            /** @description The album does not exist or has no cover, or its cover is missing */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -731,6 +883,48 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    get_artist_cover: {
+        parameters: {
+            query?: {
+                /** @description Expiration of a signed coverUrl (Unix timestamp); part of the URL, not to be built by hand */
+                _expiration?: number;
+                /** @description Signature of a signed coverUrl; part of the URL, not to be built by hand */
+                _hash?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Artist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A thumbnail of the artist (JPEG, square, at most 300 pixels a side) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description Neither a valid JWT nor a valid, unexpired signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The artist does not exist or has no image, or its image is missing or unreadable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -851,6 +1045,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_search_get: {
+        parameters: {
+            query: {
+                /** @description The text to search for, e.g. "motorhead ace" */
+                q: string;
+                /** @description How many artists, albums and tracks to return, at most, of each */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Search resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Search.jsonld-search.read_artist.read_album.read_track.read"];
+                    "application/json": components["schemas"]["Search-search.read_artist.read_album.read_track.read"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
             };
         };
     };
