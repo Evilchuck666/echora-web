@@ -6,11 +6,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Echora Web is the browser client of Echora, a self-hosted music streaming service. It talks to the Echora API (Symfony + API Platform), which lives in a separate repository at `../Echora` (https://github.com/Evilchuck666/Echora). Native apps for other platforms are planned on the same API, so business rules belong in the API, not here.
 
-The repository is new: the app hasn't been scaffolded yet. Once it is, replace this paragraph with the real commands (dev server, build, lint, tests).
+## Commands
+
+```sh
+bun install          # install dependencies
+bun run dev          # Vite dev server at http://localhost:5173
+bun run build        # type check (tsc -b) and production build into dist/
+bun run typecheck    # type check only
+bun run lint         # oxlint
+bun run preview      # serve the production build
+bun run api:types    # regenerate src/api/schema.d.ts from the running API
+```
+
+There are no tests yet.
+
+## Layout
+
+- `src/main.tsx`: mounts the providers (TanStack Query, React Router).
+- `src/app/`: app-wide setup: `router.tsx` (routes), `query-client.ts`.
+- `src/api/`: `client.ts` (the typed `openapi-fetch` client) and `schema.d.ts` (generated, committed so builds don't need the API; never edit it by hand).
+- `src/pages/`: one component per route.
+- `.env` sets `VITE_API_URL` (the API origin, without `/api`, since the generated paths include it). Local overrides go in `.env.local` (git-ignored).
 
 ## Decided stack
 
-- Vite + React + TypeScript, styled with Tailwind CSS 4.
+- Vite + React + TypeScript, styled with Tailwind CSS 4 (through `@tailwindcss/vite`; no `tailwind.config`, configuration lives in CSS).
+- **TypeScript 6, not 7**: TypeScript 7 (the native compiler) has no JavaScript API, which `openapi-typescript` needs, and the editor only supports it experimentally. Move to 7 when both do.
+- Linting with **oxlint** (`.oxlintrc.json`), the current Vite template's default. No formatter has been chosen yet.
 - **Bun** is the package manager and script runner (`bun install`, `bun run <script>`, `bunx`). Don't use npm, pnpm or yarn, and don't commit their lockfiles.
 - TanStack Query for server state, React Router for routing, Zustand for client state (the player: queue, current track, volume).
 - API types generated from the API's OpenAPI specification with `openapi-typescript`, and requests made with `openapi-fetch`. Don't hand-write API types: regenerate them when the API changes.
@@ -35,5 +57,5 @@ The local API runs from `../Echora` with `docker compose up --wait` at **https:/
 
 - CORS on the API allows `localhost` on any port in development, so the Vite dev server can call https://localhost directly.
 - The API's HTTPS certificate is signed by Caddy's local authority. The browser must trust it, or `fetch` calls to the API fail before reaching it: open https://localhost/api once and accept the certificate, or import the authority from `docker compose cp php:/data/caddy/pki/authorities/local/root.crt <file>` (run in `../Echora`).
-- API Platform publishes OpenAPI 3.2. If `openapi-typescript` doesn't support it, generate from `https://localhost/api/docs.jsonopenapi?spec_version=3.0.0` (that parameter is honoured for 3.0.0, not for 3.1.0).
+- API Platform publishes OpenAPI 3.2, and `openapi-typescript` 7 handles it (the 3.0.0 variant, `?spec_version=3.0.0`, yields the same types). `bun run api:types` runs on Node, which doesn't trust Caddy's certificate: run it as `NODE_EXTRA_CA_CERTS=<exported root.crt> bun run api:types`.
 - The editor is Code - OSS with extensions from Open VSX: only recommend extensions published there.

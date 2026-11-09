@@ -1,8 +1,9 @@
 # 🎧 Echora Web
 
 ![Platform](https://img.shields.io/badge/platform-Web-blue)
-![React](https://img.shields.io/badge/React-TypeScript-blue)
-![Vite](https://img.shields.io/badge/build-Vite-blue)
+![React](https://img.shields.io/badge/React-19-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-blue)
+![Vite](https://img.shields.io/badge/Vite-8-blue)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-blue)
 ![Bun](https://img.shields.io/badge/requires-Bun-blue)
 ![Status](https://img.shields.io/badge/status-early%20development-orange)
@@ -38,8 +39,8 @@ Echora Web is in early development. These are the features it is being built wit
 
 | Part | Technologies |
 |---|---|
-| Web client (this repository) | React, TypeScript, Vite, Tailwind CSS 4 |
-| Data and state | TanStack Query (server data), Zustand (player), React Router |
+| Web client (this repository) | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, oxlint |
+| Data and state | TanStack Query 5 (server data), Zustand 5 (player), React Router 8 |
 | API access | `openapi-fetch`, with types generated from the API's OpenAPI specification by `openapi-typescript` |
 | Package manager | [Bun](https://bun.sh/) |
 | Backend | [Echora](https://github.com/Evilchuck666/Echora): Symfony + API Platform, in a separate repository |
@@ -47,9 +48,6 @@ Echora Web is in early development. These are the features it is being built wit
 ---
 
 ## 🚀 Running in development
-
-> [!NOTE]
-> The app hasn't been scaffolded yet. These steps describe how it will run once it is.
 
 You need [Bun](https://bun.sh/) and a running Echora API. Start the API first, from its repository:
 
@@ -76,6 +74,8 @@ bun run dev
 
 Vite serves the app at **http://localhost:5173**. The API allows calls from `localhost` on any port in development.
 
+The client finds the API through `VITE_API_URL` in `.env` (`https://localhost` by default). To point it somewhere else, set it in `.env.local`, which git ignores.
+
 ### The API's certificate
 
 `https://localhost` uses a certificate signed by Caddy's local authority, and the browser must trust it: otherwise every call to the API fails before reaching it. Open https://localhost/api once and accept the certificate, or import the authority into your browser or system:
@@ -89,7 +89,13 @@ docker compose cp php:/data/caddy/pki/authorities/local/root.crt ~/echora-local-
 
 ## 🔌 API types
 
-The client doesn't hand-write the shapes of the API's responses: it generates them from the OpenAPI specification that the API publishes at `https://localhost/api/docs.jsonopenapi`, with `openapi-typescript`. When the API changes, regenerate the types and let TypeScript point out what needs updating.
+The client doesn't hand-write the shapes of the API's responses: it generates them from the OpenAPI specification that the API publishes at `https://localhost/api/docs.jsonopenapi`, with `openapi-typescript`. When the API changes, regenerate the types and let TypeScript point out what needs updating:
+
+```sh
+NODE_EXTRA_CA_CERTS=~/echora-local-ca.crt bun run api:types
+```
+
+The generator runs on Node, which doesn't use the browser's certificates: `NODE_EXTRA_CA_CERTS` points it to Caddy's authority, exported as shown above. The result, `src/api/schema.d.ts`, is committed, so building the client doesn't need a running API.
 
 The API documents every endpoint at **https://localhost/api**, and its [README](https://github.com/Evilchuck666/Echora#-api) explains authentication, filters and media URLs.
 
@@ -97,10 +103,19 @@ The API documents every endpoint at **https://localhost/api**, and its [README](
 
 ## 🛠️ Development
 
+| Command | What it does |
+|---|---|
+| `bun run dev` | Starts the Vite dev server, with hot reload |
+| `bun run build` | Checks the types and builds the app into `dist/` |
+| `bun run typecheck` | Checks the types only |
+| `bun run lint` | Lints the code with [oxlint](https://oxc.rs/docs/guide/usage/linter) |
+| `bun run preview` | Serves the production build locally |
+| `bun run api:types` | Regenerates the API types (see [API types](#-api-types)) |
+
 The repository includes a VS Code setup in `.vscode/` (it also works in Code - OSS with extensions from Open VSX):
 
-- Recommended extensions: ESLint, Tailwind CSS IntelliSense and EditorConfig.
-- Tasks to install dependencies, start the dev server, build and lint, all through Bun.
+- Recommended extensions: Oxc (oxlint), Tailwind CSS IntelliSense and EditorConfig.
+- Tasks for every script above, all through Bun.
 - A **Debug in Chrome** configuration that starts the dev server and opens the app with the debugger attached. The debug browser uses its own profile, so accept the API's certificate there too.
 
 Use Bun for everything (`bun install`, `bun run <script>`, `bunx`), not npm, pnpm or yarn.
@@ -109,7 +124,7 @@ Use Bun for everything (`bun install`, `bun run <script>`, `bunx`), not npm, pnp
 
 ## 🚧 Status
 
-Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready, and the next steps here are scaffolding the app, signing in, browsing the library and the player.
+Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and the app is set up with its stack and the typed API client; the next steps are signing in, browsing the library and the player.
 
 ---
 

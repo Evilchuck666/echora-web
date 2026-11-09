@@ -1,3 +1,25 @@
+# Dependencies and build output
+node_modules
+dist
+dist-ssr
+
+# Local overrides (.env.local and friends)
+*.local
+
+# Logs
+logs
+*.log
+
+# Lockfiles of other package managers: this project uses Bun (bun.lock)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Editors and OS (.vscode/ is shared on purpose)
+.idea
+.DS_Store
+*.sw?
+
 # Personal Claude Code files
 CLAUDE.local.md
 .claude/settings.local.json

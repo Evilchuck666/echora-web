@@ -15,7 +15,7 @@
   },
 
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
+    "source.fixAll.oxc": "explicit"
   },
 
   // NPM Scripts view and script tasks run through Bun.
@@ -27,5 +27,6 @@
   "search.exclude": {
     "**/dist": true,
     "bun.lock": true
-  }
+  },
+  "python.terminal.useEnvFile": true
 }

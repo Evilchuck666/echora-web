@@ -31,10 +31,22 @@
       "problemMatcher": ["$tsc"]
     },
     {
+      "label": "Type check",
+      "type": "shell",
+      "command": "bun run typecheck",
+      "problemMatcher": ["$tsc"]
+    },
+    {
       "label": "Lint",
       "type": "shell",
       "command": "bun run lint",
-      "problemMatcher": ["$eslint-stylish"]
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate API types",
+      "type": "shell",
+      "command": "bun run api:types",
+      "problemMatcher": []
     }
   ]
 }
