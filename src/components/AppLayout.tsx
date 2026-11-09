@@ -14,7 +14,7 @@ export function AppLayout() {
         </Link>
         <div className="flex items-center gap-4 text-sm">
           {user && <span className="text-neutral-400">{user.username}</span>}
-          <button type="button" onClick={signOut} className="text-neutral-300 hover:text-white">
+          <button type="button" onClick={() => void signOut()} className="text-neutral-300 hover:text-white">
             Sign out
           </button>
         </div>

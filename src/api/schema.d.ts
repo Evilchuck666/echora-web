@@ -124,7 +124,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    api_refresh_token: {
+    "/api/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signs out: invalidates a refresh token.
+         * @description Deletes the refresh token, so the session it belongs to cannot get new JWTs. Needs no Authorization header, so it also works once the JWT has expired; a JWT already issued stays valid until it expires (one hour at most).
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/token/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -745,6 +765,48 @@ export interface operations {
                          * @description The Unix timestamp the refresh token expires at
                          */
                         readonly refresh_token_expiration?: number;
+                    };
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The refresh token of the session to end */
+        requestBody: {
+            content: {
+                "application/json": {
+                    refresh_token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The refresh token no longer works (it was invalidated now, or already was) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: number;
+                        message: string;
+                    };
+                };
+            };
+            /** @description The body has no refresh_token */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: number;
+                        message: string;
                     };
                 };
             };

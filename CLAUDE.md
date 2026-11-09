@@ -25,11 +25,9 @@ There are no tests yet.
 - `src/main.tsx`: mounts the providers (TanStack Query, React Router).
 - `src/app/`: app-wide setup: `router.tsx` (routes), `query-client.ts` (also clears the cache on sign-out).
 - `src/api/`: `client.ts` (the typed `openapi-fetch` client, its authentication middleware, and `unwrap()` to turn a call into data or an `ApiError` for `queryFn`) and `schema.d.ts` (generated, committed so builds don't need the API; never edit it by hand).
-- `src/auth/`: the session. `tokens.ts` keeps the tokens in `localStorage` (shared by every tab) and exposes `useSession` (Zustand); `session.ts` signs in and out and refreshes the JWT, single-flight within a tab and under a Web Lock across tabs, re-reading the tokens once the lock is held. `RequireAuth` guards the signed-in routes.
+- `src/auth/`: the session. `tokens.ts` keeps the tokens in `localStorage` (shared by every tab) and exposes `useSession` (Zustand); `session.ts` signs in and out and refreshes the JWT, single-flight within a tab and under a Web Lock across tabs, re-reading the tokens once the lock is held. Signing out takes the same lock, so it invalidates the current refresh token. `RequireAuth` guards the signed-in routes.
 - `src/components/`: shared components, such as `AppLayout` (the frame of signed-in pages).
 - `src/pages/`: one component per route.
-
-The API's OpenAPI document lists the refresh endpoint as `api_refresh_token` instead of `/api/token/refresh` (the firewall's `check_path` is a route name), so `session.ts` calls it with plain `fetch`. Once the API documents the path, it can use the typed client.
 - `.env` sets `VITE_API_URL` (the API origin, without `/api`, since the generated paths include it). Local overrides go in `.env.local` (git-ignored).
 
 ## Decided stack
@@ -50,7 +48,8 @@ The local API runs from `../Echora` with `docker compose up --wait` at **https:/
 - **Collections need JSON-LD** (`Accept: application/ld+json`, the default): items are in `member`, the total in `totalItems`, and pagination links in `view` (`first`, `next`, `last`; 30 items per page, `page` query parameter). With `Accept: application/json` a collection is a bare array with no total or links.
 - **Filters** take IRIs for relations: `/api/albums?artist=/api/artists/{id}`, `/api/tracks?album=/api/albums/{id}`. Text filters (`name`, `title`) are partial and case-insensitive. Default order: artists by name, albums by year, tracks by disc and track number.
 - **Authentication**: `POST /api/auth` with `{"username", "password"}` returns `{token, refresh_token, refresh_token_expiration}`. Send `Authorization: Bearer <token>` on every request. The JWT lasts one hour. `POST /api/token/refresh` with `{"refresh_token"}` returns a new pair.
-- **Refresh tokens are single use with reuse detection**: presenting a refresh token that was already spent revokes the whole session. So refreshes must be single-flight (concurrent 401s wait for one refresh) **and coordinated across browser tabs** (e.g. Web Locks API or BroadcastChannel, with the tokens in shared storage). Two tabs refreshing with the same token sign the user out.
+- **Signing out**: `POST /api/logout` with `{"refresh_token"}` invalidates it (no JWT needed). The JWT stays valid until it expires, so drop it locally too.
+- **Refresh tokens are single use with reuse detection**: presenting a refresh token that was already spent revokes the whole session, also when two requests present it at the same time (the API serializes them). So refreshes must be single-flight (concurrent 401s wait for one refresh) **and coordinated across browser tabs** (e.g. Web Locks API or BroadcastChannel, with the tokens in shared storage). Two tabs refreshing with the same token sign the user out.
 - **Media URLs**: every track has a `streamUrl` (valid 6 hours) and every album a `coverUrl` (or `null`; stable for a day, so the browser caches it). Both are signed and work without the Authorization header: use them directly as `<audio src>` / `<img src>`. Never build these URLs by hand and never put the JWT in a URL. When a `streamUrl` has expired (401), fetch the track again for a fresh one.
 - Audio is served as is (FLAC or MP3) with HTTP Range support, so seeking works with a plain `<audio>` element. FLAC files are large (~30 MB per track).
 - Lists include `hasLyrics`; the `lyrics` themselves only come with `GET /api/tracks/{id}`.
