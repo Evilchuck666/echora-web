@@ -25,14 +25,14 @@ The rules of the service (what a library contains, who can listen to it, how tra
 
 ## ✨ Features
 
-Echora Web is in early development. These are the features it is being built with:
+Echora Web is in early development. What it does so far:
 
 - **Sign in once**: the client signs in with your Echora account and keeps the session alive by refreshing its token on its own, even with the app open in several tabs.
 - **Browse your library**: artists with their photos, their albums and each album's tracks, in the order of the tags (disc and track number), with album covers.
+- **A player that follows you**: play an album or a single track, and keep listening while you browse. Seek anywhere, skip, change the volume (remembered), use the space bar and arrow keys, or your keyboard's media keys and the system's media controls.
 - **Search everything at once**: one field in the header finds artists, albums and tracks, every word in any order, ignoring accents (`motorhead` finds Motörhead). Press `/` to jump to it.
-- **Play in the browser**: FLAC and MP3 straight from the server with a plain `<audio>` element, with seeking, so no plugin or transcoding is needed.
-- **A queue that follows you around**: the player keeps playing while you browse, with a queue, the current track and the volume.
-- **Lyrics**: the lyrics of the track that is playing, when its tags have them.
+
+Coming next: shuffle and repeat, a queue you can see and reorder, and the lyrics of the track that is playing.
 
 ---
 
@@ -125,7 +125,7 @@ Use Bun for everything (`bun install`, `bun run <script>`, `bunx`), not npm, pnp
 
 ## 🚧 Status
 
-Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing the library (artists with their photos, albums and tracks, with infinite scroll) and searching the whole library work; the player is next.
+Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing and searching the library, and playing it work. Next: shuffle and repeat, a queue panel, and lyrics.
 
 ---
 

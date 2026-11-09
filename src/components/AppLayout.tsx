@@ -1,6 +1,7 @@
 import { Link, Outlet, ScrollRestoration } from 'react-router'
 import { signOut } from '../auth/session'
 import { useCurrentUser } from '../auth/useCurrentUser'
+import { PlayerBar } from '../player/PlayerBar'
 import { SearchBox } from './SearchBox'
 
 /** The frame of every signed-in page. */
@@ -26,6 +27,7 @@ export function AppLayout() {
       <Outlet />
       {/* Back and forward return to where the page was scrolled; the lists come from the query cache meanwhile. */}
       <ScrollRestoration />
+      <PlayerBar />
     </div>
   )
 }

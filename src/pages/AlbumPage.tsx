@@ -7,11 +7,16 @@ import { Spinner } from '../components/Spinner'
 import { formatDuration, plural } from '../library/format'
 import { useAlbum, useAlbumTracks } from '../library/queries'
 import type { Album, Track } from '../library/types'
+import { playQueue, togglePlay } from '../player/engine'
+import { NowPlayingIcon, PauseIcon, PlayIcon } from '../player/icons'
+import { selectCurrentTrack, usePlayer } from '../player/store'
 
 export function AlbumPage() {
   const { id = '' } = useParams()
   const album = useAlbum(id)
   const tracks = useAlbumTracks(id)
+  const currentTrack = usePlayer(selectCurrentTrack)
+  const playing = usePlayer((state) => state.playing)
 
   if (album.isLoadingError) {
     return (
@@ -34,6 +39,28 @@ export function AlbumPage() {
   const artist = album.data.artist
   const members = tracks.data?.pages.flatMap((page) => page.member) ?? []
   const total = tracks.data?.pages[0]?.totalItems
+  const albumIsCurrent = currentTrack?.album?.id === id
+
+  /** Queues the whole album, loading the pages not shown yet, and plays from the given track. */
+  async function playFrom(index: number) {
+    let all = members
+    if (tracks.hasNextPage) {
+      let result = await tracks.fetchNextPage()
+      while (result.hasNextPage && !result.isFetchNextPageError) {
+        result = await result.fetchNextPage()
+      }
+      all = result.data?.pages.flatMap((page) => page.member) ?? members
+    }
+    playQueue(all, index)
+  }
+
+  function playTrack(index: number) {
+    if (members[index]?.id === currentTrack?.id) {
+      togglePlay()
+    } else {
+      void playFrom(index)
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -58,6 +85,15 @@ export function AlbumPage() {
             )}
             <AlbumFacts album={album.data} trackCount={total} tracks={tracks.hasNextPage ? undefined : members} />
           </p>
+          <button
+            type="button"
+            onClick={() => (albumIsCurrent ? togglePlay() : void playFrom(0))}
+            disabled={members.length === 0}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+          >
+            {albumIsCurrent && playing ? <PauseIcon /> : <PlayIcon />}
+            {albumIsCurrent && playing ? 'Pause' : 'Play'}
+          </button>
         </div>
       </header>
 
@@ -71,7 +107,13 @@ export function AlbumPage() {
         <p className="py-12 text-center text-neutral-400">This album has no tracks.</p>
       ) : (
         <>
-          <TrackList tracks={members} album={album.data} />
+          <TrackList
+            tracks={members}
+            album={album.data}
+            currentTrackId={currentTrack?.id}
+            playing={playing}
+            onPlay={playTrack}
+          />
           <InfiniteScrollTrigger {...tracks} />
         </>
       )}
@@ -94,7 +136,15 @@ function AlbumFacts({ album, trackCount, tracks }: { album: Album; trackCount?: 
   return facts.map((fact) => <span key={fact} className="text-neutral-400">{` · ${fact}`}</span>)
 }
 
-function TrackList({ tracks, album }: { tracks: Track[]; album: Album }) {
+interface TrackListProps {
+  tracks: Track[]
+  album: Album
+  currentTrackId?: string
+  playing: boolean
+  onPlay: (index: number) => void
+}
+
+function TrackList({ tracks, album, currentTrackId, playing, onPlay }: TrackListProps) {
   // Disc headings only when the album has more than one disc.
   const discs = new Set(tracks.map((track) => track.discNumber ?? 1))
   const showDiscs = discs.size > 1
@@ -109,7 +159,13 @@ function TrackList({ tracks, album }: { tracks: Track[]; album: Album }) {
             {startsDisc && (
               <h2 className="pt-6 pb-2 text-sm font-medium tracking-wider text-neutral-400 uppercase">Disc {disc}</h2>
             )}
-            <TrackRow track={track} albumArtistId={album.artist?.id} />
+            <TrackRow
+              track={track}
+              albumArtistId={album.artist?.id}
+              current={track.id === currentTrackId}
+              playing={playing}
+              onPlay={() => onPlay(index)}
+            />
           </li>
         )
       })}
@@ -117,15 +173,41 @@ function TrackList({ tracks, album }: { tracks: Track[]; album: Album }) {
   )
 }
 
-function TrackRow({ track, albumArtistId }: { track: Track; albumArtistId?: string }) {
+interface TrackRowProps {
+  track: Track
+  albumArtistId?: string
+  /** The track loaded in the player, playing or paused. */
+  current: boolean
+  playing: boolean
+  onPlay: () => void
+}
+
+/** A track: its number turns into a play button on hover, a double click plays it, the one loaded is highlighted. */
+function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowProps) {
   // On compilations, each track keeps its own artist.
   const showArtist = track.artist && track.artist.id !== albumArtistId
+  const nowPlaying = current && playing
 
   return (
-    <div className="flex items-center gap-4 rounded-md px-2 py-2.5 hover:bg-neutral-900">
-      <span className="w-6 shrink-0 text-right text-sm text-neutral-500 tabular-nums">{track.trackNumber ?? '–'}</span>
+    <div
+      onDoubleClick={onPlay}
+      className={`group flex items-center gap-4 rounded-md px-2 py-2.5 select-none hover:bg-neutral-900 ${current ? 'bg-neutral-900/60' : ''}`}
+    >
+      <button
+        type="button"
+        onClick={onPlay}
+        aria-label={`${nowPlaying ? 'Pause' : 'Play'} ${track.title}`}
+        className="flex w-6 shrink-0 justify-end text-sm tabular-nums"
+      >
+        <span className={`group-focus-within:hidden group-hover:hidden ${current ? 'text-violet-400' : 'text-neutral-500'}`}>
+          {nowPlaying ? <NowPlayingIcon className="h-4 w-4" /> : (track.trackNumber ?? '–')}
+        </span>
+        <span className="hidden text-neutral-100 group-focus-within:block group-hover:block">
+          {nowPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+        </span>
+      </button>
       <div className="min-w-0 flex-1">
-        <p className="truncate">{track.title}</p>
+        <p className={`truncate ${current ? 'text-violet-300' : ''}`}>{track.title}</p>
         {showArtist && (
           <Link to={`/artists/${track.artist?.id}`} className="truncate text-sm text-neutral-400 hover:underline">
             {track.artist?.name}
