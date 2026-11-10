@@ -8,6 +8,8 @@ export interface PlayerTrack {
   durationMs?: number | null
   /** Signed, valid for a few hours; the engine fetches the track again for a fresh one when it has expired. */
   streamUrl?: string
+  /** The audio converted to Opus, about a quarter of the size (data saver); FLAC tracks only, null for MP3. */
+  opusStreamUrl?: string | null
   /** Whether GET /api/tracks/{id} has lyrics for it (the lyrics panel). */
   hasLyrics?: boolean
   artist?: { id?: string; name?: string }
@@ -19,6 +21,12 @@ export interface QueueEntry {
   key: string
   track: PlayerTrack
 }
+
+/**
+ * Original: the files as they are (FLAC, MP3). Data saver: FLAC tracks converted to Opus by the API, about a quarter
+ * of the size; MP3 tracks are already small and play as they are.
+ */
+export type Quality = 'original' | 'data-saver'
 
 /** Off: stop after the last track. All: start the queue again. One: play the current track again. */
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -44,12 +52,18 @@ export interface PlayerState {
   muted: boolean
   shuffle: boolean
   repeat: RepeatMode
+  quality: Quality
   error: string | null
+}
+
+/** The first time, data saver on phones and tablets (a touch screen), where the network is often mobile. */
+function defaultQuality(): Quality {
+  return typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches ? 'data-saver' : 'original'
 }
 
 /**
  * The player's state. Only the engine (engine.ts) writes it, mirroring the audio element; components read it and
- * call the engine's controls. The volume, shuffle and repeat are remembered between visits, the queue isn't.
+ * call the engine's controls. The volume, shuffle, repeat and quality are remembered between visits, the queue isn't.
  */
 export const usePlayer = create<PlayerState>()(
   persist(
@@ -66,11 +80,12 @@ export const usePlayer = create<PlayerState>()(
       muted: false,
       shuffle: false,
       repeat: 'off',
+      quality: defaultQuality(),
       error: null,
     }),
     {
       name: 'echora.player',
-      partialize: ({ volume, muted, shuffle, repeat }) => ({ volume, muted, shuffle, repeat }),
+      partialize: ({ volume, muted, shuffle, repeat, quality }) => ({ volume, muted, shuffle, repeat, quality }),
     },
   ),
 )

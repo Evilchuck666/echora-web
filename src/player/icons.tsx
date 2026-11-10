@@ -101,3 +101,10 @@ export const DragHandleIcon = ({ className }: IconProps) => (
     <path d="M9 5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-6 5.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM9 16a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
   </svg>
 )
+
+/** A gauge: the audio quality. */
+export const QualityIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 4a10 10 0 0 0-10 10 9.9 9.9 0 0 0 1.4 5.1l.3.4h16.6l.3-.4A9.9 9.9 0 0 0 22 14 10 10 0 0 0 12 4Zm7.1 13.5H4.9A8 8 0 0 1 4 14a8 8 0 0 1 16 0 8 8 0 0 1-.9 3.5ZM16.6 8.7l-3.7 3.5a2 2 0 1 0 1.4 1.4l3.6-3.6-1.3-1.3Z" />
+  </svg>
+)

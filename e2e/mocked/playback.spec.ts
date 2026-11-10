@@ -78,3 +78,45 @@ test('only one tab plays at a time', async ({ page, context }) => {
   await expectPlaying(page)
   await expect(player(other).getByRole('button', { name: 'Play', exact: true })).toBeVisible()
 })
+
+test('the data saver plays FLAC tracks as Opus, MP3 tracks as they are, and is remembered', async ({ page, api }) => {
+  const quality = (label: string) => player(page).getByRole('button', { name: `Audio quality: ${label}` })
+  const streams = (album: string, opus: boolean) =>
+    api.tracks
+      .filter((track) => track.albumId === api.albumTitled(album).id)
+      .some((track) => api.requests.some((request) => request.startsWith(`GET /api/tracks/${track.id}/stream${opus ? '/opus' : '?'}`)))
+
+  await quality('Original').click()
+  await expect(page.getByRole('menuitemradio', { name: /Original/ })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('menuitemradio', { name: /Data saver/ }).click()
+  await expect(quality('Data saver')).toBeVisible()
+
+  await playAlbum(page, 'Killer')
+  await expectPlaying(page)
+  expect(streams('Killer', true)).toBe(true)
+  expect(streams('Killer', false)).toBe(false)
+
+  await page.getByRole('searchbox', { name: 'Search the library' }).fill('reptile')
+  await page.getByRole('region', { name: 'Tracks' }).getByRole('button', { name: 'Play Love Me Like a Reptile' }).click()
+  await expect(nowPlaying(page)).toHaveText('Love Me Like a Reptile')
+  await expectPlaying(page)
+  expect(streams('Ace of Spades', false)).toBe(true)
+  expect(streams('Ace of Spades', true)).toBe(false)
+
+  await page.reload()
+  await expect(quality('Data saver')).toBeVisible()
+})
+
+test('switching the quality keeps playing where the track was', async ({ page, api }) => {
+  const [first] = api.tracks.filter((track) => track.albumId === api.albumTitled('Killer').id)
+  await playAlbum(page, 'Killer')
+  await expect(async () => expect(Number(await position(page).inputValue())).toBeGreaterThan(3)).toPass({ timeout: 10_000 })
+
+  await player(page).getByRole('button', { name: 'Audio quality: Original' }).click()
+  await page.getByRole('menuitemradio', { name: /Data saver/ }).click()
+
+  await expect.poll(() => api.requests.some((request) => request.startsWith(`GET /api/tracks/${first.id}/stream/opus`))).toBe(true)
+  await expect(nowPlaying(page)).toHaveText('Under My Wheels')
+  expect(Number(await position(page).inputValue())).toBeGreaterThan(2.5)
+  await expectPlaying(page)
+})

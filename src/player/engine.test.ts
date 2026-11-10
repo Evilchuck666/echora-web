@@ -4,6 +4,7 @@ import { calls, json, jwt, routes } from '../test/http'
 import {
   AUTOPLAY_BLOCKED,
   addToQueue,
+  canPlayOpus,
   cycleRepeat,
   extendQueue,
   jumpTo,
@@ -14,6 +15,7 @@ import {
   previous,
   removeFromQueue,
   seek,
+  setQuality,
   setVolume,
   stop,
   toggleMute,
@@ -31,6 +33,11 @@ const created = vi.hoisted(() => {
     constructor(src?: string) {
       super(src)
       elements.push(this)
+    }
+
+    // happy-dom plays nothing: answer as browsers that play Opus do.
+    canPlayType(type: string): CanPlayTypeResult {
+      return type.includes('opus') ? 'probably' : super.canPlayType(type)
     }
   } as typeof Audio
   return elements
@@ -50,7 +57,9 @@ function playAt(seconds: number, duration = 180) {
   audio().dispatchEvent(new Event('timeupdate'))
 }
 
-const inHours = (hours: number) => Math.floor(Date.now() / 1000) + hours * 3600
+// From one instant for the whole file: the same URL built twice must be equal, even a second apart.
+const NOW = Math.floor(Date.now() / 1000)
+const inHours = (hours: number) => NOW + hours * 3600
 const streamUrl = (id: string, expiresAt = inHours(6), hash = 'sig') =>
   `https://localhost/api/tracks/${id}/stream?_expiration=${expiresAt}&_hash=${hash}`
 const track = (id: string, url = streamUrl(id)): PlayerTrack => ({
@@ -71,7 +80,7 @@ const many = (count: number) => Array.from({ length: count }, (_, i) => track(St
 
 beforeEach(() => {
   stop()
-  usePlayer.setState({ volume: 1, muted: false, shuffle: false, repeat: 'off' })
+  usePlayer.setState({ volume: 1, muted: false, shuffle: false, repeat: 'off', quality: 'original' })
   // Back to happy-dom's own (unknown) duration: the elements are the same from test to test.
   for (const element of created) {
     delete (element as { duration?: number }).duration
@@ -445,7 +454,8 @@ describe('preloading the next track', () => {
   })
 
   it('waits until the new track plays before preloading the one after it, even when it is a short one', async () => {
-    playQueue([track('1'), track('2'), track('3')])
+    const tracks = [track('1'), track('2'), track('3')]
+    playQueue(tracks)
     await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
     const first = audio()
     playAt(170)
@@ -461,8 +471,8 @@ describe('preloading the next track', () => {
     first.dispatchEvent(new Event('ended'))
 
     await vi.waitFor(() => expect(currentId()).toBe('2'))
-    expect(fallbackSrc).toBe(album[0].streamUrl)
-    await vi.waitFor(() => expect(spare().src).toBe(album[2].streamUrl))
+    expect(fallbackSrc).toBe(tracks[0].streamUrl)
+    await vi.waitFor(() => expect(spare().src).toBe(tracks[2].streamUrl))
     expect(spare()).toBe(first)
   })
 
@@ -479,6 +489,86 @@ describe('preloading the next track', () => {
     await vi.waitFor(() => expect(audio().src).toBe(album[1].streamUrl))
     expect(audio()).toBe(first)
     expect(usePlayer.getState().error).toBeNull()
+  })
+})
+
+describe('quality', () => {
+  const opusUrl = (id: string, hash = 'sig') => `https://localhost/api/tracks/${id}/stream/opus?_expiration=${inHours(6)}&_hash=${hash}`
+  /** A FLAC track: the API also gives it an Opus version. */
+  const flac = (id: string): PlayerTrack => ({ ...track(id), opusStreamUrl: opusUrl(id) })
+  /** An MP3 track: no Opus version. */
+  const mp3 = (id: string): PlayerTrack => ({ ...track(id), opusStreamUrl: null })
+
+  it('data saver plays FLAC tracks as Opus, and MP3 tracks as they are', async () => {
+    setQuality('data-saver')
+    playQueue([flac('1'), mp3('2')])
+    await vi.waitFor(() => expect(audio().src).toBe(opusUrl('1')))
+
+    next()
+
+    await vi.waitFor(() => expect(audio().src).toBe(streamUrl('2')))
+  })
+
+  it('switches the track that is playing at once, where it was', async () => {
+    playQueue([flac('1')])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    audio().currentTime = 42
+
+    setQuality('data-saver')
+
+    expect(audio().src).toBe(opusUrl('1'))
+    expect(audio().currentTime).toBe(42)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+  })
+
+  it('switches a paused track without playing it', async () => {
+    playQueue([flac('1')])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    togglePlay()
+
+    setQuality('data-saver')
+
+    expect(audio().src).toBe(opusUrl('1'))
+    expect(audio().paused).toBe(true)
+  })
+
+  it('loads the next track again in the new quality', async () => {
+    playQueue([flac('1'), flac('2')])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(170)
+    expect(spare().src).toBe(streamUrl('2'))
+
+    setQuality('data-saver')
+
+    expect(spare().src).toBe(opusUrl('2'))
+  })
+
+  it('renews both URLs of a track, and plays the one of the quality chosen', async () => {
+    // Built once: a URL built a second later would have another expiry.
+    const renewed = opusUrl('1', 'renewed')
+    routes({ 'GET /api/tracks/1': () => json({ id: '1', streamUrl: streamUrl('1', inHours(6), 'renewed'), opusStreamUrl: renewed }) })
+    setQuality('data-saver')
+    playQueue([{ ...flac('1'), opusStreamUrl: opusUrl('1').replace(/_expiration=\d+/, `_expiration=${Math.floor(Date.now() / 1000) + 30}`) }])
+
+    await vi.waitFor(() => expect(audio().src).toBe(renewed))
+    expect(usePlayer.getState().queue[0].track.streamUrl).toContain('_hash=renewed')
+  })
+
+  it('plays the files as they are where the browser has no Opus', async () => {
+    vi.spyOn(audio(), 'canPlayType').mockReturnValue('')
+    expect(canPlayOpus()).toBe(false)
+    setQuality('data-saver')
+
+    playQueue([flac('1')])
+
+    await vi.waitFor(() => expect(audio().src).toBe(streamUrl('1')))
+    vi.restoreAllMocks()
+  })
+
+  it('is remembered', () => {
+    setQuality('data-saver')
+
+    expect(JSON.parse(localStorage.getItem('echora.player') ?? '{}').state.quality).toBe('data-saver')
   })
 })
 
@@ -574,7 +664,13 @@ describe('volume', () => {
     setVolume(0.3)
 
     expect(audio().volume).toBe(0.3)
-    expect(JSON.parse(localStorage.getItem('echora.player') ?? '{}').state).toEqual({ volume: 0.3, muted: false, shuffle: false, repeat: 'off' })
+    expect(JSON.parse(localStorage.getItem('echora.player') ?? '{}').state).toEqual({
+      volume: 0.3,
+      muted: false,
+      shuffle: false,
+      repeat: 'off',
+      quality: 'original',
+    })
   })
 
   it('stays between 0 and 1, and 0 means muted', () => {

@@ -18,6 +18,7 @@ import {
 } from './icons'
 import { playLibrary } from './library'
 import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
+import { QualityMenu } from './QualityMenu'
 import { QUEUE_PANEL_ID, QueuePanel } from './QueuePanel'
 import { selectCurrentTrack, selectHasNext, usePlayer, type RepeatMode } from './store'
 import { usePanels } from './usePanels'
@@ -166,6 +167,7 @@ export function PlayerBar() {
             >
               <QueueIcon />
             </button>
+            <QualityMenu />
             <Volume />
           </div>
         </div>

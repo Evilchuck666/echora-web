@@ -154,6 +154,9 @@ export class MockApi {
 
   private trackJson(track: MockTrack) {
     const artist = this.artists.find((a) => a.id === track.artistId)!
+    const album = this.albums.find((a) => a.id === track.albumId)!
+    // As if Ace of Spades were MP3 files and the rest FLAC: only FLAC tracks have an Opus version.
+    const flac = album.title !== 'Ace of Spades'
     return {
       '@id': `/api/tracks/${track.id}`,
       '@type': 'Track',
@@ -168,6 +171,7 @@ export class MockApi {
       mimeType: 'audio/wav',
       fileSize: WAV.length,
       streamUrl: this.signed(`/api/tracks/${track.id}/stream`),
+      opusStreamUrl: flac ? this.signed(`/api/tracks/${track.id}/stream/opus`) : null,
       hasLyrics: track.hasLyrics,
     }
   }
@@ -246,7 +250,8 @@ export class MockApi {
     }
 
     // Media: signed URLs, no Authorization header.
-    let match = /^\/api\/tracks\/([^/]+)\/stream$/.exec(path)
+    // The Opus version is the same tone: browsers look at the audio itself, not at the URL.
+    let match = /^\/api\/tracks\/([^/]+)\/stream(\/opus)?$/.exec(path)
     if (match) {
       if (this.expiredStreams > 0) {
         this.expiredStreams--

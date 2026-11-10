@@ -1,6 +1,6 @@
 import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
-import { usePlayer, type PlayerState, type PlayerTrack, type QueueEntry, type RepeatMode } from './store'
+import { usePlayer, type PlayerState, type PlayerTrack, type Quality, type QueueEntry, type RepeatMode } from './store'
 
 // The audio of the app lives outside React, so the music goes on while pages change. Two audio elements: `audio`
 // plays, and `spare` loads the next track during the end of the current one, then they swap, so the next track
@@ -12,6 +12,11 @@ const getState = usePlayer.getState
 
 let audio = createAudio('current')
 let spare = createAudio('next')
+
+/** Whether this browser plays Opus (in Ogg), what the API converts FLAC to for the data saver. */
+export function canPlayOpus(): boolean {
+  return audio.canPlayType('audio/ogg; codecs="opus"') !== ''
+}
 
 /** The next track starts loading this many seconds before the current one ends. */
 const PRELOAD_BEFORE_END_SECONDS = 30
@@ -157,6 +162,32 @@ export function toggleShuffle(): void {
   }
 }
 
+/**
+ * Original files or data saver (FLAC as Opus). The track that is playing switches at once, where it was; the next
+ * one is loaded again in the new quality.
+ */
+export function setQuality(quality: Quality): void {
+  if (quality === getState().quality) {
+    return
+  }
+  setState({ quality })
+  const { queue, index } = getState()
+  const entry = queue[index]
+  const url = entry && urlFor(entry.track)
+  if (!url || loadedKey !== entry.key || !audio.getAttribute('src') || url === audio.src) {
+    return
+  }
+  const wasPlaying = !audio.paused
+  const position = audio.currentTime
+  retried = false
+  audio.src = url
+  audio.currentTime = position
+  if (wasPlaying) {
+    setState({ buffering: true })
+    void play()
+  }
+}
+
 const NEXT_REPEAT_MODE: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' }
 
 /** Off, then the whole queue, then the current track, then off again. */
@@ -291,7 +322,7 @@ async function load(index: number, startAt = 0): Promise<void> {
   setState({ index, currentTime: startAt, duration: (track.durationMs ?? 0) / 1000, buffering: true, error: null })
   updateMediaSession()
 
-  let url = track.streamUrl
+  let url = urlFor(track)
   if (!url || expiresSoon(url)) {
     url = await freshStreamUrl(index)
     if (id !== loadId) {
@@ -436,7 +467,7 @@ function preloadNext(): void {
   }
   const key = entry.key
   preloaded = { key }
-  const url = entry.track.streamUrl
+  const url = urlFor(entry.track)
   if (url && !expiresSoon(url)) {
     startPreload(key, url)
     return
@@ -472,7 +503,12 @@ function fail(): void {
   setState({ playing: false, buffering: false, error: "Couldn't play this track." })
 }
 
-/** Fetches the track again for a new signed stream URL, and keeps it in the queue for the next time. */
+/** The URL to play a track from: its Opus version with the data saver on (FLAC tracks only), else the file as is. */
+function urlFor(track: PlayerTrack): string | undefined {
+  return getState().quality === 'data-saver' && canPlayOpus() && track.opusStreamUrl ? track.opusStreamUrl : track.streamUrl
+}
+
+/** Fetches the track again for new signed URLs, keeps them in the queue for the next time, and returns the one to play. */
 async function freshStreamUrl(index: number): Promise<string | undefined> {
   const entry = getState().queue[index]
   if (!entry?.track.id) {
@@ -480,12 +516,13 @@ async function freshStreamUrl(index: number): Promise<string | undefined> {
   }
   try {
     const { data } = await api.GET('/api/tracks/{id}', { params: { path: { id: entry.track.id } } })
-    const url = data?.streamUrl
-    if (url) {
-      const renew = (queued: QueueEntry) => (queued.key === entry.key ? { ...queued, track: { ...queued.track, streamUrl: url } } : queued)
-      setState((state) => ({ queue: state.queue.map(renew), unshuffled: state.unshuffled.map(renew) }))
+    if (!data?.streamUrl) {
+      return undefined
     }
-    return url
+    const track = { ...entry.track, streamUrl: data.streamUrl, opusStreamUrl: data.opusStreamUrl ?? null }
+    const renew = (queued: QueueEntry) => (queued.key === entry.key ? { ...queued, track } : queued)
+    setState((state) => ({ queue: state.queue.map(renew), unshuffled: state.unshuffled.map(renew) }))
+    return urlFor(track)
   } catch {
     return undefined
   }
@@ -571,7 +608,16 @@ usePlayer.subscribe((state, previousState) => {
   if (state.volume !== previousState.volume || state.muted !== previousState.muted) {
     applyVolume()
   }
-  if (state.queue !== previousState.queue || state.index !== previousState.index || state.repeat !== previousState.repeat) {
+  if (state.quality !== previousState.quality) {
+    // What was loaded for the next track is in the other quality.
+    dropPreload()
+  }
+  if (
+    state.queue !== previousState.queue ||
+    state.index !== previousState.index ||
+    state.repeat !== previousState.repeat ||
+    state.quality !== previousState.quality
+  ) {
     preloadNext()
   }
   if (state.playing !== previousState.playing && 'mediaSession' in navigator) {
