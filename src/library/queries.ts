@@ -40,6 +40,26 @@ export function useArtistAlbums(artistId: string) {
   })
 }
 
+/** Every album of the library, by year and title (the API's order). */
+export function useAlbums() {
+  return useInfiniteQuery({
+    queryKey: ['albums'],
+    queryFn: ({ pageParam }) => unwrap(api.GET('/api/albums', { params: { query: { page: pageParam } } })),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => nextPage(lastPage.view),
+  })
+}
+
+/** Every track of the library, in its order: album artists by name, their albums by year, disc and track number. */
+export function useTracks() {
+  return useInfiniteQuery({
+    queryKey: ['tracks'],
+    queryFn: ({ pageParam }) => fetchTracksPage(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => nextPage(lastPage.view),
+  })
+}
+
 export function useAlbum(id: string) {
   return useQuery({
     queryKey: ['album', id],

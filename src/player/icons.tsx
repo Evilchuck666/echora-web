@@ -150,3 +150,17 @@ export const PlaylistIcon = ({ className }: IconProps) => (
     <path d="M3 5h12v2H3zM3 10h12v2H3zM3 15h7v2H3zM17 8h4v2h-2v7.5a2.5 2.5 0 1 1-2-2.45V8Z" />
   </svg>
 )
+
+/** A record: the albums. */
+export const AlbumsIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm0 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm0 5a3 3 0 1 1 0 6 3 3 0 0 1 0-6Zm0 2a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
+  </svg>
+)
+
+/** A note: the tracks. */
+export const TracksIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+  </svg>
+)

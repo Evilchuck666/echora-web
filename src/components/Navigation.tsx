@@ -16,7 +16,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { createPlaylist, movePlaylist, usePlaylists } from '../library/playlists'
 import type { Playlist } from '../library/types'
-import { ArtistsIcon, DragHandleIcon, HeartIcon, PlaylistIcon, PlusIcon } from '../player/icons'
+import { AlbumsIcon, ArtistsIcon, DragHandleIcon, HeartIcon, PlaylistIcon, PlusIcon, TracksIcon } from '../player/icons'
 import { showToast } from './toast'
 import { InfiniteScrollTrigger } from './InfiniteScrollTrigger'
 import { PlaylistNameDialog } from './PlaylistDialogs'
@@ -51,6 +51,12 @@ export function Navigation() {
         <ul className="flex flex-col gap-1">
           <NavItem to="/" end icon={<ArtistsIcon />}>
             Artists
+          </NavItem>
+          <NavItem to="/albums" end icon={<AlbumsIcon />}>
+            Albums
+          </NavItem>
+          <NavItem to="/tracks" end icon={<TracksIcon />}>
+            Tracks
           </NavItem>
           <NavItem to="/favourites" icon={<HeartIcon />}>
             Favourites

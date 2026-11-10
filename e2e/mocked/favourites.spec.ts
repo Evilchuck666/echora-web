@@ -44,10 +44,11 @@ test('albums and artists become favourites from their pages', async ({ page, api
   await expect.poll(() => [api.favourites.album.length, api.favourites.artist.length]).toEqual([1, 1])
 
   await library(page).getByRole('link', { name: 'Favourites' }).click()
-  await page.getByRole('link', { name: 'Albums' }).click()
+  const tabs = page.getByRole('navigation', { name: 'Favourites' })
+  await tabs.getByRole('link', { name: 'Albums' }).click()
   await expect(page).toHaveURL('/favourites/albums')
   await expect(page.getByRole('main').getByRole('link', { name: /Killer/ })).toBeVisible()
-  await page.getByRole('link', { name: 'Artists', exact: true }).last().click()
+  await tabs.getByRole('link', { name: 'Artists' }).click()
   await expect(page).toHaveURL('/favourites/artists')
   await expect(page.getByRole('main').getByRole('link', { name: /Alice Cooper/ })).toBeVisible()
 })

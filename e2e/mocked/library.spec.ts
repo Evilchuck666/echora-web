@@ -73,3 +73,40 @@ test.describe('infinite scroll', () => {
     expect(pages).toEqual(['1', '2', '2', '2', '2', '3'])
   })
 })
+
+test.describe('albums and tracks of the whole library', () => {
+  test.beforeEach(async ({ signIn }) => signIn())
+
+  test('the Albums page lists every album, by year, with its artist', async ({ page }) => {
+    await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Albums' }).click()
+
+    await expect(page).toHaveURL('/albums')
+    await expect(page.getByRole('heading', { name: 'Albums' })).toBeVisible()
+    await expect(page.getByRole('main')).toContainText('4 albums')
+    const titles = await page.getByRole('main').getByRole('listitem').locator('p.font-medium').allTextContents()
+    expect(titles).toEqual(['Killer', 'Ace of Spades', 'Breaker', 'Balls to the Wall'])
+    await expect(page.getByRole('main')).toContainText('Alice Cooper · 1971')
+
+    await page.getByRole('main').getByRole('link', { name: /Breaker/ }).click()
+    await expect(page.getByRole('heading', { name: 'Breaker' })).toBeVisible()
+  })
+
+  test('the Tracks page lists the library in its order; a track plays it from there, Play from the start', async ({ page }) => {
+    const player = page.getByRole('region', { name: 'Player' })
+    await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Tracks' }).click()
+
+    await expect(page).toHaveURL('/tracks')
+    await expect(page.getByRole('main')).toContainText('14 tracks')
+    await expect(page.getByRole('main').getByRole('link', { name: 'Starlight' })).toBeVisible()
+
+    await page.getByRole('main').getByRole('button', { name: 'Play Under My Wheels' }).click()
+    await expect(player.getByRole('link').first()).toHaveText('Under My Wheels')
+    await expect(page.getByRole('main').getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
+    const queue = page.getByRole('complementary', { name: 'Queue' })
+    await expect(queue).toContainText('4 tracks to come')
+
+    // Play pauses what it started.
+    await page.getByRole('main').getByRole('button', { name: 'Pause', exact: true }).click()
+    await expect(player.getByRole('button', { name: 'Play', exact: true })).toBeVisible()
+  })
+})
