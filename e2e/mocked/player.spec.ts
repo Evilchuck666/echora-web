@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../support/fixtures.ts'
-import { TRACK_SECONDS } from '../support/mock-api.ts'
+import { PASSWORD, TRACK_SECONDS, USERNAME } from '../support/mock-api.ts'
 
 const player = (page: Page) => page.getByRole('region', { name: 'Player' })
 const position = (page: Page) => player(page).getByRole('slider', { name: 'Position in the track' })
@@ -94,17 +94,45 @@ test('next, previous, and on to the next track at the end of one', async ({ page
   await expect(player(page).getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
-test('mute is remembered, the queue is not', async ({ page }) => {
+test('the queue, the track and the position come back after a reload, paused; Play goes on from there', async ({ page, api }) => {
   await openAlbum(page, 'Killer')
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
   await player(page).getByRole('button', { name: 'Mute' }).click()
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await expect(player(page).getByRole('link').first()).toHaveText('Be My Lover')
+  await expect(async () => expect(Number(await position(page).inputValue())).toBeGreaterThan(3)).toPass({ timeout: 10_000 })
 
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Killer' })).toBeVisible()
-  await expect(player(page)).toContainText('Nothing playing')
 
-  await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
+  await expect(player(page).getByRole('link').first()).toHaveText('Be My Lover')
+  await expect(player(page).getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   await expect(player(page).getByRole('button', { name: 'Unmute' })).toBeVisible()
+  const kept = Number(await position(page).inputValue())
+  expect(kept).toBeGreaterThan(2.5)
+  // The column of large screens shows the queue as it was.
+  await expect(page.getByRole('complementary', { name: 'Queue' })).toContainText('Halo of Flies')
+
+  const streamsBefore = api.requests.filter((request) => request.includes('/stream')).length
+  await player(page).getByRole('button', { name: 'Play', exact: true }).click()
+  await expect(async () => expect(Number(await position(page).inputValue())).toBeGreaterThan(kept + 0.5)).toPass({ timeout: 10_000 })
+  expect(Number(await position(page).inputValue())).toBeGreaterThan(kept)
+  expect(api.requests.filter((request) => request.includes('/stream')).length).toBeGreaterThan(streamsBefore)
+})
+
+test('signing out forgets the queue', async ({ page }) => {
+  await openAlbum(page, 'Killer')
+  await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
+  await expect(player(page).getByRole('button', { name: 'Pause' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL('/login')
+  // Signing in again goes back to the album.
+  await page.getByLabel('Username').fill(USERNAME)
+  await page.getByLabel('Password').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Killer' })).toBeVisible()
+
+  await expect(player(page)).toContainText('Nothing playing')
 })
 
 test('a search result plays on its own', async ({ page }) => {

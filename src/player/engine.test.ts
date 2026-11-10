@@ -14,6 +14,7 @@ import {
   playQueue,
   previous,
   removeFromQueue,
+  restoreSavedQueue,
   seek,
   setQuality,
   setVolume,
@@ -22,6 +23,7 @@ import {
   togglePlay,
   toggleShuffle,
 } from './engine'
+import { readSavedQueue, writeSavedQueue } from './saved-queue'
 import { selectCurrentTrack, selectHasNext, selectUpcoming, usePlayer, type PlayerTrack } from './store'
 
 // The engine's two audio elements, caught when the engine module creates them: the one playing is marked
@@ -687,6 +689,75 @@ describe('volume', () => {
 
     toggleMute()
     expect(audio().muted).toBe(true)
+  })
+})
+
+describe('kept between visits', () => {
+  it('is saved at once on pause, with the position', async () => {
+    playQueue(album, { startIndex: 1, origin: 'album:x' })
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    audio().currentTime = 42
+    audio().dispatchEvent(new Event('timeupdate'))
+
+    togglePlay()
+
+    expect(readSavedQueue()).toMatchObject({ index: 1, origin: 'album:x', currentTime: 42 })
+    expect(readSavedQueue()?.tracks.map((t) => t.id)).toEqual(['1', '2', '3'])
+  })
+
+  it('is saved when the page goes away', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    expect(readSavedQueue()).toBeUndefined()
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(readSavedQueue()?.index).toBe(0)
+  })
+
+  it('comes back paused where it was, and Play goes on from there with fresh stream URLs', async () => {
+    writeSavedQueue({
+      queue: album.map((t, i) => ({ key: `old-${i}`, track: t })),
+      unshuffled: album.map((t, i) => ({ key: `old-${i}`, track: t })),
+      index: 1,
+      origin: 'album:x',
+      currentTime: 42,
+    })
+    routes({ 'GET /api/tracks/2': () => json({ id: '2', streamUrl: streamUrl('2', inHours(6), 'renewed') }) })
+
+    restoreSavedQueue()
+
+    expect(usePlayer.getState()).toMatchObject({ index: 1, origin: 'album:x', currentTime: 42, duration: 180, playing: false })
+    expect(queueIds()).toEqual(['1', '2', '3'])
+    expect(audio().getAttribute('src')).toBeNull()
+
+    togglePlay()
+
+    await vi.waitFor(() => expect(audio().src).toContain('_hash=renewed'))
+    expect(audio().currentTime).toBe(42)
+  })
+
+  it('a tab left idle never overwrites what another tab saved', () => {
+    writeSavedQueue({ queue: [{ key: 'a', track: track('1') }], unshuffled: [], index: 0, origin: null, currentTime: 5 })
+    restoreSavedQueue()
+    // Another tab saves its own queue meanwhile.
+    writeSavedQueue({ queue: [{ key: 'b', track: track('9') }], unshuffled: [], index: 0, origin: null, currentTime: 7 })
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(readSavedQueue()?.tracks[0].id).toBe('9')
+  })
+
+  it('is forgotten on sign-out', async () => {
+    writeTokens({ token: jwt(3600), refreshToken: 'refresh', refreshTokenExpiresAt: inHours(720) })
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    togglePlay()
+    expect(readSavedQueue()).toBeDefined()
+
+    clearTokens()
+
+    expect(readSavedQueue()).toBeUndefined()
   })
 })
 

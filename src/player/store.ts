@@ -65,7 +65,8 @@ function defaultQuality(): Quality {
 
 /**
  * The player's state. Only the engine (engine.ts) writes it, mirroring the audio element; components read it and
- * call the engine's controls. The volume, shuffle, repeat and quality are remembered between visits, the queue isn't.
+ * call the engine's controls. The volume, shuffle, repeat and quality are remembered between visits here; the queue
+ * and the position are too, by the engine (saved-queue.ts).
  */
 export const usePlayer = create<PlayerState>()(
   persist(

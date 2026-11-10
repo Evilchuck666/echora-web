@@ -1,5 +1,6 @@
 import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
+import { clearSavedQueue, readSavedQueue, writeSavedQueue } from './saved-queue'
 import { usePlayer, type PlayerState, type PlayerTrack, type Quality, type QueueEntry, type RepeatMode } from './store'
 
 // The audio of the app lives outside React, so the music goes on while pages change. Two audio elements: `audio`
@@ -519,7 +520,9 @@ async function freshStreamUrl(index: number): Promise<string | undefined> {
     if (!data?.streamUrl) {
       return undefined
     }
-    const track = { ...entry.track, streamUrl: data.streamUrl, opusStreamUrl: data.opusStreamUrl ?? null }
+    // The album's cover URL is renewed too: a queue kept from an earlier visit may hold one a day old.
+    const album = entry.track.album && data.album ? { ...entry.track.album, coverUrl: data.album.coverUrl ?? null } : entry.track.album
+    const track = { ...entry.track, streamUrl: data.streamUrl, opusStreamUrl: data.opusStreamUrl ?? null, album }
     const renew = (queued: QueueEntry) => (queued.key === entry.key ? { ...queued, track } : queued)
     setState((state) => ({ queue: state.queue.map(renew), unshuffled: state.unshuffled.map(renew) }))
     return urlFor(track)
@@ -563,7 +566,10 @@ function createAudio(role: 'current' | 'next'): HTMLAudioElement {
     setState({ playing: true })
     announcePlaying()
   })
-  on('pause', () => setState({ playing: false }))
+  on('pause', () => {
+    setState({ playing: false })
+    saveNow()
+  })
   on('waiting', () => setState({ buffering: true }))
   on('playing', () => setState({ buffering: false, error: null }))
   on('canplay', () => setState({ buffering: false }))
@@ -605,6 +611,15 @@ function applyVolume(): void {
 }
 applyVolume()
 usePlayer.subscribe((state, previousState) => {
+  if (
+    state.queue !== previousState.queue ||
+    state.unshuffled !== previousState.unshuffled ||
+    state.index !== previousState.index ||
+    state.origin !== previousState.origin ||
+    state.currentTime !== previousState.currentTime
+  ) {
+    scheduleSave()
+  }
   if (state.volume !== previousState.volume || state.muted !== previousState.muted) {
     applyVolume()
   }
@@ -629,8 +644,77 @@ usePlayer.subscribe((state, previousState) => {
 useSession.subscribe((session, previousSession) => {
   if (previousSession.signedIn && !session.signedIn) {
     stop()
+    clearSavedQueue()
   }
 })
+
+// --- Kept between visits --------------------------------------------------------------------------------------------
+
+// The queue, the current track and the position are saved (saved-queue.ts) a few seconds after they change, at once
+// on pause and when the page goes away, and put back, paused, when the app opens again. A tab only saves what it
+// changed itself: one left idle never overwrites what another tab saved meanwhile.
+
+/** Saves come at most this often while the music plays (the position changes several times a second). */
+const SAVE_EVERY_MS = 5000
+
+/** Whether this tab changed the queue or the position since it last saved them. */
+let dirty = false
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+
+function scheduleSave(): void {
+  dirty = true
+  saveTimer ??= setTimeout(saveNow, SAVE_EVERY_MS)
+}
+
+function saveNow(): void {
+  clearTimeout(saveTimer)
+  saveTimer = undefined
+  if (!dirty) {
+    return
+  }
+  dirty = false
+  const { queue, unshuffled, index, origin, currentTime } = getState()
+  if (index < 0) {
+    clearSavedQueue()
+  } else {
+    writeSavedQueue({ queue, unshuffled, index, origin, currentTime })
+  }
+}
+
+window.addEventListener('pagehide', saveNow)
+document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && saveNow())
+
+/**
+ * Puts back the queue an earlier visit saved, paused where it was: Play goes on from there (the stream URLs are
+ * fetched again then). Runs once when the engine starts; nothing happens if a queue is loaded already.
+ */
+export function restoreSavedQueue(): void {
+  const saved = readSavedQueue()
+  if (!saved || getState().index >= 0) {
+    return
+  }
+  const entries = toEntries(saved.tracks)
+  const inOrder = saved.unshuffledOrder.map((i) => entries[i])
+  // Any entry the saved order lacks (it shouldn't happen) keeps a place at the end.
+  const unshuffled = [...inOrder, ...entries.filter((entry) => !inOrder.includes(entry))]
+  const track = entries[saved.index].track
+  setState({
+    queue: entries,
+    unshuffled,
+    index: saved.index,
+    origin: saved.origin,
+    currentTime: saved.currentTime,
+    duration: (track.durationMs ?? 0) / 1000,
+    playing: false,
+    buffering: false,
+    error: null,
+  })
+  updateMediaSession()
+  // What was just read is what is saved: nothing to write until this tab changes something.
+  dirty = false
+  clearTimeout(saveTimer)
+  saveTimer = undefined
+}
 
 // --- One tab at a time ----------------------------------------------------------------------------------------------
 
@@ -698,3 +782,5 @@ if ('mediaSession' in navigator) {
     }
   }
 }
+
+restoreSavedQueue()
