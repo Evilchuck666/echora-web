@@ -2,14 +2,24 @@ import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
 import { usePlayer, type PlayerState, type PlayerTrack, type QueueEntry, type RepeatMode } from './store'
 
-// The one audio element of the app. It lives outside React, so the music goes on while pages change; its events
-// write the store, and the controls below are the only way to drive it.
-
-const audio = new Audio()
-audio.preload = 'auto'
+// The audio of the app lives outside React, so the music goes on while pages change. Two audio elements: `audio`
+// plays, and `spare` loads the next track during the end of the current one, then they swap, so the next track
+// starts without waiting for the network (FLAC files are large). Only the playing element's events write the store,
+// and the controls below are the only way to drive them.
 
 const setState = usePlayer.setState
 const getState = usePlayer.getState
+
+let audio = createAudio('current')
+let spare = createAudio('next')
+
+/** The next track starts loading this many seconds before the current one ends. */
+const PRELOAD_BEFORE_END_SECONDS = 30
+
+/** The queue entry the spare element is loading (`url` once it has one), if any. */
+let preloaded: { key: string; url?: string } | null = null
+/** The queue entry whose audio `audio` holds: until a new track's URL is set, it still holds the previous one. */
+let loadedKey: string | null = null
 
 /** Previous goes back to the start of the track after this many seconds of it, to the previous track before. */
 const RESTART_AFTER_SECONDS = 3
@@ -195,9 +205,9 @@ export function toggleMute(): void {
 /** Stops and forgets the queue (e.g. on sign-out). */
 export function stop(): void {
   loadId++
-  audio.pause()
-  audio.removeAttribute('src')
-  audio.load()
+  dropPreload()
+  empty(audio)
+  loadedKey = null
   setState({ queue: [], unshuffled: [], index: -1, origin: null, playing: false, buffering: false, currentTime: 0, duration: 0, error: null })
   updateMediaSession()
 }
@@ -240,12 +250,20 @@ function cue(tracks: PlayerTrack[]): void {
 // --- Loading -------------------------------------------------------------------------------------------------------
 
 async function load(index: number, startAt = 0): Promise<void> {
-  const track = getState().queue[index]?.track
-  if (!track) {
+  const entry = getState().queue[index]
+  if (!entry) {
     return
   }
+  const track = entry.track
   const id = ++loadId
   retried = false
+  if (startAt === 0 && preloaded?.key === entry.key && preloaded.url && !spare.error) {
+    await playPreloaded(index)
+    return
+  }
+  if (preloaded?.key === entry.key) {
+    dropPreload()
+  }
   setState({ index, currentTime: startAt, duration: (track.durationMs ?? 0) / 1000, buffering: true, error: null })
   updateMediaSession()
 
@@ -262,6 +280,7 @@ async function load(index: number, startAt = 0): Promise<void> {
   }
 
   audio.src = url
+  loadedKey = entry.key
   if (startAt > 0) {
     audio.currentTime = startAt
   }
@@ -304,6 +323,99 @@ async function recover(): Promise<void> {
   await play()
 }
 
+/** Plays the track the spare element has loaded: the elements swap, and the old one is emptied to become the spare. */
+async function playPreloaded(index: number): Promise<void> {
+  swapElements()
+  loadedKey = preloaded?.key ?? null
+  preloaded = null
+  empty(spare)
+
+  const track = getState().queue[index].track
+  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (track.durationMs ?? 0) / 1000
+  setState({ index, currentTime: 0, duration, buffering: audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA, error: null })
+  updateMediaSession()
+  updatePositionState()
+  try {
+    await audio.play()
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+      // Some browsers (Safari) only let an element play once a click has started it, and the spare never had one:
+      // the element that was playing loads the track instead, as without preloading.
+      const url = audio.src
+      swapElements()
+      empty(spare)
+      setState({ buffering: true })
+      audio.src = url
+      await play()
+    }
+  }
+}
+
+function swapElements(): void {
+  ;[audio, spare] = [spare, audio]
+  audio.dataset.player = 'current'
+  spare.dataset.player = 'next'
+}
+
+/** The entry that plays after the current one, if any: the next in the queue, or the first when repeating it. */
+function nextEntry(): QueueEntry | undefined {
+  const { index, queue, repeat } = getState()
+  if (index < 0 || repeat === 'one') {
+    return undefined
+  }
+  if (index + 1 < queue.length) {
+    return queue[index + 1]
+  }
+  return repeat === 'all' && queue.length > 1 ? queue[0] : undefined
+}
+
+/**
+ * Near the end of the current track, starts loading the next one in the spare element. Called as the track plays
+ * and whenever the queue changes: what was loaded for a track that is no longer next is dropped.
+ */
+function preloadNext(): void {
+  const entry = nextEntry()
+  if (preloaded && preloaded.key !== entry?.key) {
+    dropPreload()
+  }
+  const { queue, index } = getState()
+  const remaining = audio.duration - audio.currentTime
+  if (!entry || preloaded || loadedKey !== queue[index]?.key || !(remaining <= PRELOAD_BEFORE_END_SECONDS)) {
+    return
+  }
+  const key = entry.key
+  preloaded = { key }
+  const url = entry.track.streamUrl
+  if (url && !expiresSoon(url)) {
+    startPreload(key, url)
+    return
+  }
+  void freshStreamUrl(getState().queue.indexOf(entry)).then((fresh) => {
+    if (fresh && preloaded?.key === key && !preloaded.url) {
+      startPreload(key, fresh)
+    }
+  })
+}
+
+function startPreload(key: string, url: string): void {
+  preloaded = { key, url }
+  spare.src = url
+}
+
+function dropPreload(): void {
+  preloaded = null
+  empty(spare)
+}
+
+/** Stops an element and lets go of what it downloaded. */
+function empty(element: HTMLAudioElement): void {
+  element.pause()
+  if (element.getAttribute('src')) {
+    element.removeAttribute('src')
+    element.load()
+  }
+}
+
 function fail(): void {
   audio.pause()
   setState({ playing: false, buffering: false, error: "Couldn't play this track." })
@@ -334,23 +446,52 @@ function expiresSoon(url: string): boolean {
   return Number.isFinite(expiration) && expiration > 0 && expiration < Date.now() / 1000 + RENEW_BEFORE_SECONDS
 }
 
-// --- Audio element → store -----------------------------------------------------------------------------------------
+// --- Audio elements → store --------------------------------------------------------------------------------------
 
-audio.addEventListener('timeupdate', () => setState({ currentTime: audio.currentTime }))
-audio.addEventListener('durationchange', () => {
-  if (Number.isFinite(audio.duration) && audio.duration > 0) {
-    setState({ duration: audio.duration })
-    updatePositionState()
-  }
-})
-audio.addEventListener('play', () => setState({ playing: true }))
-audio.addEventListener('pause', () => setState({ playing: false }))
-audio.addEventListener('waiting', () => setState({ buffering: true }))
-audio.addEventListener('playing', () => setState({ buffering: false, error: null }))
-audio.addEventListener('canplay', () => setState({ buffering: false }))
-audio.addEventListener('seeked', updatePositionState)
-audio.addEventListener('error', () => void recover())
-audio.addEventListener('ended', () => {
+/** An audio element; its events only count while it is the one playing (`audio`). */
+function createAudio(role: 'current' | 'next'): HTMLAudioElement {
+  const element = new Audio()
+  element.preload = 'auto'
+  // Which element is which: handy in the developer tools, and for the tests.
+  element.dataset.player = role
+  const on = (type: string, listener: () => void) =>
+    element.addEventListener(type, () => {
+      if (element === audio) {
+        listener()
+      }
+    })
+
+  on('timeupdate', () => {
+    setState({ currentTime: audio.currentTime })
+    preloadNext()
+  })
+  on('durationchange', () => {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      setState({ duration: audio.duration })
+      updatePositionState()
+    }
+  })
+  on('play', () => {
+    setState({ playing: true })
+    announcePlaying()
+  })
+  on('pause', () => setState({ playing: false }))
+  on('waiting', () => setState({ buffering: true }))
+  on('playing', () => setState({ buffering: false, error: null }))
+  on('canplay', () => setState({ buffering: false }))
+  on('seeked', updatePositionState)
+  on('error', () => void recover())
+  on('ended', onEnded)
+  // The next track failed to load (e.g. its URL expired meanwhile): it will load the usual way when its turn comes.
+  element.addEventListener('error', () => {
+    if (element === spare && preloaded?.url) {
+      dropPreload()
+    }
+  })
+  return element
+}
+
+function onEnded(): void {
   const { index, queue, repeat } = getState()
   if (repeat === 'one') {
     audio.currentTime = 0
@@ -364,18 +505,23 @@ audio.addEventListener('ended', () => {
     audio.currentTime = 0
     setState({ playing: false, currentTime: 0 })
   }
-})
+}
 
 // Store → audio element: the volume, remembered between visits.
 function applyVolume(): void {
   const { volume, muted } = getState()
-  audio.volume = volume
-  audio.muted = muted
+  for (const element of [audio, spare]) {
+    element.volume = volume
+    element.muted = muted
+  }
 }
 applyVolume()
 usePlayer.subscribe((state, previousState) => {
   if (state.volume !== previousState.volume || state.muted !== previousState.muted) {
     applyVolume()
+  }
+  if (state.queue !== previousState.queue || state.index !== previousState.index || state.repeat !== previousState.repeat) {
+    preloadNext()
   }
   if (state.playing !== previousState.playing && 'mediaSession' in navigator) {
     navigator.mediaSession.playbackState = state.playing ? 'playing' : 'paused'
@@ -386,6 +532,22 @@ usePlayer.subscribe((state, previousState) => {
 useSession.subscribe((session, previousSession) => {
   if (previousSession.signedIn && !session.signedIn) {
     stop()
+  }
+})
+
+// --- One tab at a time ----------------------------------------------------------------------------------------------
+
+// The app may be open in several tabs, each with its own player: when one starts playing, the others pause, so two
+// tracks never play over each other. Each keeps its queue and can be resumed, which pauses the others in turn.
+const tabs = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('echora.player')
+
+function announcePlaying(): void {
+  tabs?.postMessage({ type: 'playing' })
+}
+
+tabs?.addEventListener('message', (event: MessageEvent<{ type?: string }>) => {
+  if (event.data?.type === 'playing' && !audio.paused) {
+    audio.pause()
   }
 })
 

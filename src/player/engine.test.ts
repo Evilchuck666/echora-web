@@ -20,7 +20,8 @@ import {
 } from './engine'
 import { selectCurrentTrack, selectHasNext, selectUpcoming, usePlayer, type PlayerTrack } from './store'
 
-// The engine's audio element, caught when the engine module creates it.
+// The engine's two audio elements, caught when the engine module creates them: the one playing is marked
+// data-player="current", the one loading the next track data-player="next".
 const created = vi.hoisted(() => {
   const elements: HTMLAudioElement[] = []
   const Original = globalThis.Audio
@@ -32,7 +33,20 @@ const created = vi.hoisted(() => {
   } as typeof Audio
   return elements
 })
-const audio = () => created[0]
+const audio = () => created.find((element) => element.dataset.player === 'current')!
+const spare = () => created.find((element) => element.dataset.player === 'next')!
+
+/** happy-dom doesn't decode audio: give the playing element a length and a position. */
+function setPosition(seconds: number, duration = 180) {
+  Object.defineProperty(audio(), 'duration', { value: duration, configurable: true })
+  audio().currentTime = seconds
+}
+
+/** As the audio plays on to `seconds`. */
+function playAt(seconds: number, duration = 180) {
+  setPosition(seconds, duration)
+  audio().dispatchEvent(new Event('timeupdate'))
+}
 
 const inHours = (hours: number) => Math.floor(Date.now() / 1000) + hours * 3600
 const streamUrl = (id: string, expiresAt = inHours(6), hash = 'sig') =>
@@ -287,6 +301,141 @@ describe('repeat', () => {
 
     next()
     await vi.waitFor(() => expect(currentId()).toBe('2'))
+  })
+})
+
+describe('preloading the next track', () => {
+  it('starts in the last 30 seconds of a track, and the next one then plays from the preloaded element', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const first = audio()
+
+    playAt(140)
+    expect(spare().getAttribute('src')).toBeNull()
+    playAt(151)
+    expect(spare().src).toBe(album[1].streamUrl)
+
+    first.dispatchEvent(new Event('ended'))
+
+    await vi.waitFor(() => expect(currentId()).toBe('2'))
+    expect(audio()).not.toBe(first)
+    expect(audio().src).toBe(album[1].streamUrl)
+    expect(spare()).toBe(first)
+    expect(first.getAttribute('src')).toBeNull()
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+  })
+
+  it('Next uses the preloaded track too', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(170)
+
+    next()
+
+    await vi.waitFor(() => expect(currentId()).toBe('2'))
+    expect(audio().src).toBe(album[1].streamUrl)
+  })
+
+  it('follows the queue: a track that is no longer next is dropped', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(170)
+    expect(spare().src).toBe(album[1].streamUrl)
+
+    removeFromQueue(usePlayer.getState().queue[1].key)
+
+    expect(spare().src).toBe(album[2].streamUrl)
+    playNext([track('a')])
+    expect(spare().src).toBe(streamUrl('a'))
+  })
+
+  it('preloads the first track when repeating the queue, nothing when repeating one track', async () => {
+    cycleRepeat()
+    playQueue(album, { startIndex: 2 })
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(170)
+    expect(spare().src).toBe(album[0].streamUrl)
+
+    cycleRepeat()
+    expect(spare().getAttribute('src')).toBeNull()
+  })
+
+  it('renews the URL of the next track first when it is about to expire', async () => {
+    routes({ 'GET /api/tracks/2': () => json({ id: '2', streamUrl: streamUrl('2', inHours(6), 'renewed') }) })
+    playQueue([track('1'), track('2', streamUrl('2', Math.floor(Date.now() / 1000) + 30))])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+
+    playAt(170)
+
+    await vi.waitFor(() => expect(spare().src).toContain('_hash=renewed'))
+  })
+
+  it('waits for the new track before preloading the one after it', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    // The first track ends without a preload (e.g. the end was reached by seeking, with no time to preload).
+    setPosition(180)
+    audio().dispatchEvent(new Event('ended'))
+
+    // The element still holds the first track, at its end: that is no reason to load the third one yet.
+    expect(currentId()).toBe('2')
+    expect(spare().getAttribute('src')).toBeNull()
+  })
+
+  it('when the browser won\'t let the preloaded element play, the element that was playing loads the track', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const first = audio()
+    playAt(170)
+    vi.spyOn(spare(), 'play').mockRejectedValueOnce(new DOMException('No click on this element', 'NotAllowedError'))
+
+    first.dispatchEvent(new Event('ended'))
+
+    await vi.waitFor(() => expect(first.src).toBe(album[1].streamUrl))
+    expect(audio()).toBe(first)
+    expect(spare().getAttribute('src')).toBeNull()
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    expect(currentId()).toBe('2')
+  })
+
+  it('a preload that failed is dropped, and the track loads the usual way', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const first = audio()
+    playAt(170)
+    spare().dispatchEvent(new Event('error'))
+    expect(spare().getAttribute('src')).toBeNull()
+
+    first.dispatchEvent(new Event('ended'))
+
+    await vi.waitFor(() => expect(audio().src).toBe(album[1].streamUrl))
+    expect(audio()).toBe(first)
+    expect(usePlayer.getState().error).toBeNull()
+  })
+})
+
+describe('one tab at a time', () => {
+  it('pauses when another tab starts playing', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const otherTab = new BroadcastChannel('echora.player')
+
+    otherTab.postMessage({ type: 'playing' })
+
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(false))
+    expect(currentId()).toBe('1')
+    otherTab.close()
+  })
+
+  it('tells the other tabs when it starts playing', async () => {
+    const otherTab = new BroadcastChannel('echora.player')
+    const received: unknown[] = []
+    otherTab.onmessage = (event) => received.push(event.data)
+
+    playQueue(album)
+
+    await vi.waitFor(() => expect(received).toEqual([{ type: 'playing' }]))
+    otherTab.close()
   })
 })
 
