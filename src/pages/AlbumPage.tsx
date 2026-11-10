@@ -90,16 +90,18 @@ export function AlbumPage() {
             )}
             <AlbumFacts album={album.data} trackCount={total} tracks={tracks.hasNextPage ? undefined : members} />
           </p>
-          <button
-            type="button"
-            onClick={() => (albumIsCurrent ? togglePlay() : void playFrom())}
-            disabled={members.length === 0}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
-          >
-            {albumIsCurrent && playing ? <PauseIcon /> : <PlayIcon />}
-            {albumIsCurrent && playing ? 'Pause' : 'Play'}
-          </button>
-          {members.length > 0 && <QueueMenu name={title} tracks={allTracks} className="mt-5 ml-2 inline-block align-middle" />}
+          <div className="mt-5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => (albumIsCurrent ? togglePlay() : void playFrom())}
+              disabled={members.length === 0}
+              className="inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+            >
+              {albumIsCurrent && playing ? <PauseIcon /> : <PlayIcon />}
+              {albumIsCurrent && playing ? 'Pause' : 'Play'}
+            </button>
+            {members.length > 0 && <QueueMenu name={title} tracks={allTracks} />}
+          </div>
         </div>
       </header>
 

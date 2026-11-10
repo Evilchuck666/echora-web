@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Cover } from '../components/Cover'
 import { formatDuration } from '../library/format'
-import { cycleRepeat, next, previous, seek, seekBy, setVolume, toggleMute, togglePlay, toggleShuffle } from './engine'
+import { AUTOPLAY_BLOCKED, cycleRepeat, next, previous, seek, seekBy, setVolume, toggleMute, togglePlay, toggleShuffle } from './engine'
 import {
   LyricsIcon,
   MutedIcon,
@@ -61,8 +61,9 @@ export function PlayerBar() {
                 {track.title}
               </Link>
               {error ? (
-                <p role="alert" className="truncate text-sm text-red-400">
+                <p role="alert" title={errorHint(error)} className="truncate text-sm text-red-400">
                   {error}
+                  {errorHint(error) && <span className="sr-only">. {errorHint(error)}</span>}
                 </p>
               ) : (
                 <Link to={`/artists/${track.artist?.id}`} className="block truncate text-sm text-neutral-400 hover:underline">
@@ -184,6 +185,13 @@ function MobileProgress() {
       <div className="h-full bg-violet-400" style={{ width: `${fraction * 100}%` }} />
     </div>
   )
+}
+
+/** More about an error than the bar has room for, as a tooltip and for screen readers. */
+function errorHint(error: string): string | undefined {
+  return error === AUTOPLAY_BLOCKED
+    ? "The browser didn't let the next track start by itself. Allow autoplay for this site in its settings to play on without a click."
+    : undefined
 }
 
 function ShuffleButton() {

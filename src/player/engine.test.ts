@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearTokens, writeTokens } from '../auth/tokens'
 import { calls, json, jwt, routes } from '../test/http'
 import {
+  AUTOPLAY_BLOCKED,
   addToQueue,
   cycleRepeat,
   jumpTo,
@@ -70,6 +71,11 @@ const many = (count: number) => Array.from({ length: count }, (_, i) => track(St
 beforeEach(() => {
   stop()
   usePlayer.setState({ volume: 1, muted: false, shuffle: false, repeat: 'off' })
+  // Back to happy-dom's own (unknown) duration: the elements are the same from test to test.
+  for (const element of created) {
+    delete (element as { duration?: number }).duration
+    element.currentTime = 0
+  }
 })
 
 describe('playing', () => {
@@ -321,8 +327,9 @@ describe('preloading the next track', () => {
     expect(audio()).not.toBe(first)
     expect(audio().src).toBe(album[1].streamUrl)
     expect(spare()).toBe(first)
-    expect(first.getAttribute('src')).toBeNull()
     await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    // Emptied once the new one plays, not before: it is the fallback until then.
+    expect(first.getAttribute('src')).toBeNull()
   })
 
   it('Next uses the preloaded track too', async () => {
@@ -387,15 +394,43 @@ describe('preloading the next track', () => {
     await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
     const first = audio()
     playAt(170)
-    vi.spyOn(spare(), 'play').mockRejectedValueOnce(new DOMException('No click on this element', 'NotAllowedError'))
+    let fallbackSrc: string | null = 'not refused'
+    vi.spyOn(spare(), 'play').mockImplementationOnce(() => {
+      // The element that was playing is the fallback: it must still be as it was when the new one is refused.
+      fallbackSrc = first.getAttribute('src')
+      return Promise.reject(new DOMException('No click on this element', 'NotAllowedError'))
+    })
 
     first.dispatchEvent(new Event('ended'))
 
     await vi.waitFor(() => expect(first.src).toBe(album[1].streamUrl))
+    expect(fallbackSrc).toBe(album[0].streamUrl)
     expect(audio()).toBe(first)
     expect(spare().getAttribute('src')).toBeNull()
     await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
     expect(currentId()).toBe('2')
+  })
+
+  it('waits until the new track plays before preloading the one after it, even when it is a short one', async () => {
+    playQueue([track('1'), track('2'), track('3')])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const first = audio()
+    playAt(170)
+    // The next track is only 20 s long: the one after it is due for preloading as soon as it starts.
+    Object.defineProperty(spare(), 'duration', { value: 20, configurable: true })
+    let fallbackSrc: string | null = null
+    const originalPlay = spare().play.bind(spare())
+    vi.spyOn(spare(), 'play').mockImplementationOnce(() => {
+      fallbackSrc = first.getAttribute('src')
+      return originalPlay()
+    })
+
+    first.dispatchEvent(new Event('ended'))
+
+    await vi.waitFor(() => expect(currentId()).toBe('2'))
+    expect(fallbackSrc).toBe(album[0].streamUrl)
+    await vi.waitFor(() => expect(spare().src).toBe(album[2].streamUrl))
+    expect(spare()).toBe(first)
   })
 
   it('a preload that failed is dropped, and the track loads the usual way', async () => {
@@ -410,6 +445,30 @@ describe('preloading the next track', () => {
 
     await vi.waitFor(() => expect(audio().src).toBe(album[1].streamUrl))
     expect(audio()).toBe(first)
+    expect(usePlayer.getState().error).toBeNull()
+  })
+})
+
+describe('autoplay blocked by the browser', () => {
+  it('says so in the player, instead of stopping silently', async () => {
+    playQueue(album)
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(170)
+    // As in Firefox with autoplay blocked: no play() without a click, on either element.
+    for (const element of created) {
+      vi.spyOn(element, 'play').mockRejectedValue(new DOMException('Autoplay is blocked', 'NotAllowedError'))
+    }
+
+    audio().dispatchEvent(new Event('ended'))
+
+    await vi.waitFor(() => expect(usePlayer.getState().error).toBe(AUTOPLAY_BLOCKED))
+    expect(usePlayer.getState()).toMatchObject({ playing: false, buffering: false })
+    expect(currentId()).toBe('2')
+    vi.restoreAllMocks()
+
+    // Play (a click) starts it, and the message goes away.
+    togglePlay()
+    audio().dispatchEvent(new Event('playing'))
     expect(usePlayer.getState().error).toBeNull()
   })
 })

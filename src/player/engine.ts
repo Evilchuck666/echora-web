@@ -287,15 +287,23 @@ async function load(index: number, startAt = 0): Promise<void> {
   await play()
 }
 
+/** Shown in the player when the browser refuses to start the audio without a click (e.g. the next track). */
+export const AUTOPLAY_BLOCKED = 'Autoplay blocked: press Play'
+
 async function play(): Promise<void> {
   try {
     await audio.play()
   } catch (error) {
-    // AbortError: another track was loaded meanwhile. NotAllowedError: the browser wants a click first.
-    if (error instanceof DOMException && error.name === 'NotAllowedError') {
-      setState({ playing: false, buffering: false })
+    // AbortError: another track was loaded meanwhile. NotAllowedError: the browser wants a click first, as Firefox
+    // does for every play() when its autoplay setting blocks audio: say so, or the player just seems to stop.
+    if (isNotAllowed(error)) {
+      setState({ playing: false, buffering: false, error: AUTOPLAY_BLOCKED })
     }
   }
+}
+
+function isNotAllowed(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'NotAllowedError'
 }
 
 /** The audio failed, most likely because its signed URL expired (401): fetch the track for a fresh one, once. */
@@ -323,12 +331,20 @@ async function recover(): Promise<void> {
   await play()
 }
 
-/** Plays the track the spare element has loaded: the elements swap, and the old one is emptied to become the spare. */
+/**
+ * Plays the track the spare element has loaded: the elements swap, and once the new one plays, the old one is emptied
+ * to become the spare.
+ */
 async function playPreloaded(index: number): Promise<void> {
+  const id = loadId
+  const key = preloaded?.key ?? null
+  const previous = audio
+  const previousSrc = previous.getAttribute('src')
   swapElements()
-  loadedKey = preloaded?.key ?? null
+  // Nothing more is preloaded until the swap is over: the old element is the fallback until the new one plays.
+  loadedKey = null
   preloaded = null
-  empty(spare)
+  previous.pause()
 
   const track = getState().queue[index].track
   const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (track.durationMs ?? 0) / 1000
@@ -338,17 +354,28 @@ async function playPreloaded(index: number): Promise<void> {
   try {
     await audio.play()
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+    if (isNotAllowed(error) && id === loadId) {
       // Some browsers (Safari) only let an element play once a click has started it, and the spare never had one:
-      // the element that was playing loads the track instead, as without preloading.
+      // the element that was playing, left as it was until now, loads the track instead, as without preloading.
       const url = audio.src
+      empty(audio)
       swapElements()
-      empty(spare)
       setState({ buffering: true })
       audio.src = url
+      loadedKey = key
       await play()
     }
+    return
   }
+  if (id !== loadId) {
+    return
+  }
+  // Let go of the track that ended (unless the element was used for something else meanwhile).
+  if (previous === spare && previous.getAttribute('src') === previousSrc) {
+    empty(previous)
+  }
+  loadedKey = key
+  preloadNext()
 }
 
 function swapElements(): void {
