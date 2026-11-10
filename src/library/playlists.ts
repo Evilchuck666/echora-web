@@ -4,9 +4,9 @@ import { queryClient } from '../app/query-client'
 import { nextPage } from './queries'
 import type { Playlist, PlaylistItem } from './types'
 
-// The user's playlists (only theirs: the API answers 404 for anyone else's). Their tracks are items: one appearance
-// of a track each, so a track added twice is two items with their own ids. The API keeps the order; `position` is an
-// item's index, from 0.
+// The user's playlists (only theirs: the API answers 404 for anyone else's), in the order the user gave them, the same
+// on every device; a new one comes first. Their tracks are items: one appearance of a track each, so a track added
+// twice is two items with their own ids. The API keeps both orders; `position` is an index, from 0.
 
 /** The longest name the API accepts, once trimmed. */
 export const MAX_NAME = 100
@@ -14,6 +14,10 @@ export const MAX_NAME = 100
 const MERGE_PATCH = { headers: { 'Content-Type': 'application/merge-patch+json' } }
 
 type ItemPages = InfiniteData<{ member: PlaylistItem[] }, number>
+type PlaylistPages = InfiniteData<{ member: Playlist[] }, number>
+
+/** The queue (see inOrder) of the moves among the user's playlists, all of which change the same order. */
+const PLAYLIST_ORDER = 'order of the playlists'
 
 /** The changes under way for each playlist: the last one's promise, and how many are queued or running. */
 const changes = new Map<string, { last: Promise<unknown>; count: number }>()
@@ -43,7 +47,7 @@ function inOrder<T>(id: string, change: () => Promise<T>): Promise<T> {
 /** Whether changes to a playlist are queued or running. */
 const busy = (id: string) => changes.has(id)
 
-/** Every playlist, the most recently changed first. */
+/** Every playlist, in the user's order. */
 export function usePlaylists() {
   return useInfiniteQuery({
     queryKey: ['playlists'],
@@ -141,6 +145,34 @@ function settle(id: string): void {
   if (!busy(id)) {
     refresh(id)
     void queryClient.invalidateQueries({ queryKey: ['playlist-items', id] })
+  }
+}
+
+/**
+ * Moves a playlist to `to` among the user's playlists; the list shows it at once, then what the API made of it.
+ * Moves reach the API one at a time, like the changes to a playlist's items.
+ */
+export async function movePlaylist(id: string, from: number, to: number): Promise<void> {
+  queryClient.setQueryData<PlaylistPages>(['playlists'], (data) => {
+    if (!data) {
+      return data
+    }
+    const pages = moveInPages(
+      data.pages.map((page) => page.member),
+      from,
+      to,
+    )
+    return { ...data, pages: data.pages.map((page, i) => ({ ...page, member: pages[i] })) }
+  })
+  try {
+    await inOrder(PLAYLIST_ORDER, () =>
+      unwrap(api.PATCH('/api/playlists/{id}', { params: { path: { id } }, body: { position: to }, ...MERGE_PATCH })),
+    )
+  } finally {
+    // Read again once the last move is done (refused, to undo it); not before, or the list would jump back meanwhile.
+    if (!busy(PLAYLIST_ORDER)) {
+      void queryClient.invalidateQueries({ queryKey: ['playlists'] })
+    }
   }
 }
 

@@ -121,3 +121,43 @@ test("a playlist that doesn't exist (or is someone else's) says so", async ({ pa
 
   await expect(page.getByText("This playlist doesn't exist, or isn't yours.")).toBeVisible()
 })
+
+test('the playlists are in the order the user gives them, by dragging (or from the keyboard), and a new one comes first', async ({ page, api }) => {
+  const names = async () => (await sidebar(page).getByRole('link').allTextContents()).map((name) => name.trim())
+  api.addPlaylist('First')
+  api.addPlaylist('Second')
+  api.addPlaylist('Third')
+  await page.reload()
+  await expect.poll(names).toEqual(['Third', 'Second', 'First'])
+
+  // From the keyboard: First up two places.
+  await sidebar(page).getByRole('button', { name: 'Move First' }).focus()
+  await page.keyboard.press('Space')
+  await expect(page.getByText('First is at position 3 of 3.')).toBeAttached()
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)))
+  await page.keyboard.press('ArrowUp')
+  await expect(page.getByText('First is at position 2 of 3.')).toBeAttached()
+  await page.keyboard.press('ArrowUp')
+  await expect(page.getByText('First is at position 1 of 3.')).toBeAttached()
+  await page.keyboard.press('Space')
+  await expect.poll(names).toEqual(['First', 'Third', 'Second'])
+
+  // With the mouse: Third to the bottom.
+  const handle = (await sidebar(page).getByRole('button', { name: 'Move Third' }).boundingBox())!
+  const target = (await sidebar(page).getByRole('button', { name: 'Move Second' }).boundingBox())!
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, { steps: 12 })
+  await page.mouse.up()
+  await expect.poll(names).toEqual(['First', 'Second', 'Third'])
+
+  // As the API keeps it, the same on every device.
+  await expect.poll(() => api.playlists.map((p) => p.name)).toEqual(['First', 'Second', 'Third'])
+  await page.reload()
+  await expect.poll(names).toEqual(['First', 'Second', 'Third'])
+
+  await sidebar(page).getByRole('button', { name: 'New playlist' }).click()
+  await dialog(page).getByLabel('Name').fill('Newest')
+  await dialog(page).getByRole('button', { name: 'Create' }).click()
+  await expect.poll(names).toEqual(['Newest', 'First', 'Second', 'Third'])
+})

@@ -89,7 +89,9 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
     playQueue(tracks, { startIndex: index, origin })
   }
 
-  const facts = [plural(playlist.trackCount, 'track'), ...(playlist.durationMs > 0 ? [formatDuration(playlist.durationMs)] : [])]
+  const trackCount = playlist.trackCount ?? 0
+  const durationMs = playlist.durationMs ?? 0
+  const facts = [plural(trackCount, 'track'), ...(durationMs > 0 ? [formatDuration(durationMs)] : [])]
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -103,7 +105,7 @@ function PlaylistView({ playlist }: { playlist: Playlist }) {
             <button
               type="button"
               onClick={() => (isCurrent ? togglePlay() : void playFrom())}
-              disabled={playlist.trackCount === 0}
+              disabled={trackCount === 0}
               className="inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
             >
               {playing ? <PauseIcon /> : <PlayIcon />}
@@ -183,7 +185,7 @@ function ItemList({ playlist, items, onPlay }: ItemListProps) {
 
   const indexOf = (itemId: UniqueIdentifier) => items.findIndex((item) => item.id === itemId)
   const title = (itemId: UniqueIdentifier) => items[indexOf(itemId)]?.track?.title ?? 'The track'
-  const position = (itemId: UniqueIdentifier) => `position ${indexOf(itemId) + 1} of ${playlist.trackCount}`
+  const position = (itemId: UniqueIdentifier) => `position ${indexOf(itemId) + 1} of ${playlist.trackCount ?? items.length}`
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${title(active.id)}.`,
     onDragOver: ({ active, over }) => (over ? `${title(active.id)} is at ${position(over.id)}.` : `${title(active.id)} is outside the playlist.`),

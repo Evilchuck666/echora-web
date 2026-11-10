@@ -159,7 +159,7 @@ export function AddToPlaylistDialog({ name, tracks, onClose }: AddToPlaylistDial
                     className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-neutral-800 disabled:opacity-50"
                   >
                     <span className="truncate">{playlist.name}</span>
-                    <span className="shrink-0 text-sm text-neutral-400">{plural(playlist.trackCount, 'track')}</span>
+                    <span className="shrink-0 text-sm text-neutral-400">{plural(playlist.trackCount ?? 0, 'track')}</span>
                   </button>
                 </li>
               ))}

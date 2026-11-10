@@ -281,13 +281,13 @@ export interface paths {
         };
         /**
          * The playlists of the user making the request
-         * @description Only the user's own playlists, the most recently changed first (any change to a playlist or its items counts, including a scan removing one of its tracks). Paginated, 30 per page.
+         * @description Only the user's own playlists, in the order the user gave them (the same on every device): each has its `position`, an index from 0. A new playlist comes first; PATCH /api/playlists/{id} with `{"position": n}` moves one. Paginated, 30 per page.
          */
         get: operations["api_playlists_get_collection"];
         put?: never;
         /**
          * Creates an empty playlist
-         * @description The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique.
+         * @description The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique. The new playlist comes first among the user's playlists (position 0); the others move down by one.
          */
         post: operations["api_playlists_post"];
         delete?: never;
@@ -318,8 +318,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Renames a playlist
-         * @description Send `{"name": "..."}` as application/merge-patch+json. Changes updatedAt.
+         * Renames or moves a playlist
+         * @description Send `{"name": "..."}`, `{"position": n}` or both, as application/merge-patch+json. `position` is the index from 0, in the user's order as it is when the request arrives, where the playlist goes; the playlists in between shift by one. Beyond the last playlist means the end; a negative position is a 422. Send moves one at a time: two at once may be applied in either order, the second landing one place off. A new name changes updatedAt; moving does not.
          */
         patch: operations["api_playlists_id_patch"];
         trace?: never;
@@ -570,7 +570,7 @@ export interface components {
              * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             artist?: components["schemas"]["Artist-album.read"];
             title?: string;
             year?: number | null;
@@ -594,7 +594,7 @@ export interface components {
              * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             artist?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -627,7 +627,7 @@ export interface components {
              * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
             title?: string;
             year?: number | null;
@@ -651,7 +651,7 @@ export interface components {
              * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             artist?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -690,7 +690,7 @@ export interface components {
              * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -709,7 +709,7 @@ export interface components {
              * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -740,7 +740,7 @@ export interface components {
              * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -759,7 +759,7 @@ export interface components {
              * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -777,7 +777,7 @@ export interface components {
         /** @description Unprocessable entity */
         ConstraintViolation: {
             /** @default 422 */
-            status: number;
+            status?: number;
             violations?: {
                 /** @description The property path of the violation */
                 propertyPath: string;
@@ -800,7 +800,7 @@ export interface components {
         /** @description Unprocessable entity */
         "ConstraintViolation.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
             /** @default 422 */
-            status: number;
+            status?: number;
             violations?: {
                 /** @description The property path of the violation */
                 propertyPath: string;
@@ -831,7 +831,7 @@ export interface components {
              * @default 400
              * @example 404
              */
-            status: number | null;
+            status?: number | null;
             /** @description A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced. */
             readonly instance?: string | null;
             /** @description A URI reference that identifies the problem type */
@@ -847,7 +847,7 @@ export interface components {
              * @default 400
              * @example 404
              */
-            status: number | null;
+            status?: number | null;
             /** @description A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced. */
             readonly instance?: string | null;
             /** @description A URI reference that identifies the problem type */
@@ -915,20 +915,26 @@ export interface components {
             readonly createdAt?: string;
             /**
              * Format: date-time
-             * @description Changed by any change to the playlist or its items, including a scan removing one of its tracks.
+             * @description Changed by a new name or any change to its items, including a scan removing one of its tracks; not by moving it.
              */
             readonly updatedAt?: string;
+            /**
+             * @description Index of the playlist among the user's playlists, from 0. Send it in a PATCH to move the playlist there
+             * @default 0
+             */
+            position?: number;
             /**
              * @description Number of items (a track added twice counts twice)
              * @default 0
              */
-            readonly trackCount: number;
+            readonly trackCount?: number;
             /**
              * @description Total length in milliseconds of the items whose length is known
              * @default 0
              */
-            readonly durationMs: number;
+            readonly durationMs?: number;
             covers?: string[];
+            /** @description A new name is a change (updatedAt); the same name again is not. */
             name: string;
         };
         /**
@@ -936,6 +942,12 @@ export interface components {
          *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
          */
         "Playlist-playlist.write.jsonMergePatch": {
+            /**
+             * @description Index of the playlist among the user's playlists, from 0. Send it in a PATCH to move the playlist there
+             * @default 0
+             */
+            position?: number;
+            /** @description A new name is a change (updatedAt); the same name again is not. */
             name?: string;
         };
         /**
@@ -963,20 +975,26 @@ export interface components {
             readonly createdAt?: string;
             /**
              * Format: date-time
-             * @description Changed by any change to the playlist or its items, including a scan removing one of its tracks.
+             * @description Changed by a new name or any change to its items, including a scan removing one of its tracks; not by moving it.
              */
             readonly updatedAt?: string;
+            /**
+             * @description Index of the playlist among the user's playlists, from 0. Send it in a PATCH to move the playlist there
+             * @default 0
+             */
+            position?: number;
             /**
              * @description Number of items (a track added twice counts twice)
              * @default 0
              */
-            readonly trackCount: number;
+            readonly trackCount?: number;
             /**
              * @description Total length in milliseconds of the items whose length is known
              * @default 0
              */
-            readonly durationMs: number;
+            readonly durationMs?: number;
             covers?: string[];
+            /** @description A new name is a change (updatedAt); the same name again is not. */
             name: string;
         };
         /**
@@ -996,7 +1014,7 @@ export interface components {
              * @description Index of the item in the playlist, from 0
              * @default 0
              */
-            position: number;
+            position?: number;
             track?: components["schemas"]["Track-playlist_item.read_track.read"];
         };
         /**
@@ -1028,7 +1046,7 @@ export interface components {
              * @description Index of the item in the playlist, from 0
              * @default 0
              */
-            position: number;
+            position?: number;
             track?: components["schemas"]["Track.jsonld-playlist_item.read_track.read"];
         };
         /** @description Searches the whole library at once. Every word of the query has to appear, in any order, ignoring case and accents. Artists match by name, albums by title or artist, tracks by title, artist or album. Each list is ranked by how well the item's own name matches, and holds at most `limit` items; the totals count every match. */
@@ -1087,7 +1105,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1119,7 +1137,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1151,7 +1169,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1185,7 +1203,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1217,7 +1235,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1249,7 +1267,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1281,7 +1299,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1315,7 +1333,7 @@ export interface components {
              * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
              * @default false
              */
-            favourite: boolean;
+            favourite?: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };

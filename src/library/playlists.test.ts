@@ -58,3 +58,35 @@ describe('changes to a playlist', () => {
     expect(invalidated()).toBe(true)
   })
 })
+
+describe('moving playlists', () => {
+  it('shows the new order at once, sends the moves one at a time, and reads the list again after the last', async () => {
+    const { writeTokens } = await import('../auth/tokens')
+    const { calls, json, jwt, routes } = await import('../test/http')
+    const { queryClient } = await import('../app/query-client')
+    const { movePlaylist } = await import('./playlists')
+    writeTokens({ token: jwt(3600), refreshToken: 'r', refreshTokenExpiresAt: Math.floor(Date.now() / 1000) + 9999 })
+    let answerFirst = () => {}
+    routes({
+      'PATCH /api/playlists/c': () => new Promise<Response>((resolve) => (answerFirst = () => resolve(json({ id: 'c', name: 'C', position: 0 })))),
+      'PATCH /api/playlists/b': () => json({ id: 'b', name: 'B', position: 2 }),
+    })
+    const playlist = (id: string) => ({ id, name: id.toUpperCase(), position: 0 })
+    queryClient.setQueryData(['playlists'], { pages: [{ member: [playlist('a'), playlist('b'), playlist('c')] }], pageParams: [1] })
+    const shown = () => (queryClient.getQueryData(['playlists']) as { pages: { member: { id: string }[] }[] }).pages[0].member.map((p) => p.id)
+    const sent = async () => (await calls()).map((call) => `${new URL(call.url).pathname} ${call.body}`)
+
+    const first = movePlaylist('c', 2, 0)
+    const second = movePlaylist('b', 2, 2)
+    expect(shown()).toEqual(['c', 'a', 'b'])
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(await sent()).toEqual(['/api/playlists/c {"position":0}'])
+
+    answerFirst()
+    await first
+    expect(queryClient.getQueryState(['playlists'])?.isInvalidated).toBe(false)
+    await second
+    expect(await sent()).toEqual(['/api/playlists/c {"position":0}', '/api/playlists/b {"position":2}'])
+    expect(queryClient.getQueryState(['playlists'])?.isInvalidated).toBe(true)
+  })
+})

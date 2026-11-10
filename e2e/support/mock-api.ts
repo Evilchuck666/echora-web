@@ -29,7 +29,7 @@ interface MockAlbum {
 interface MockPlaylist {
   id: string
   name: string
-  /** Increases with every change: the list of playlists is ordered by it, newest first. */
+  /** Increases with every change to its name or items (the API's updatedAt). */
   changed: number
   items: { id: string; trackId: string }[]
 }
@@ -75,7 +75,7 @@ export class MockApi {
 
   /** The user's favourites of each kind, by id, newest first (as the API lists them). */
   readonly favourites: Record<'track' | 'album' | 'artist', string[]> = { track: [], album: [], artist: [] }
-  /** The user's playlists, as the API keeps them. */
+  /** The user's playlists, in the user's order (a new one first), as the API keeps them. */
   readonly playlists: MockPlaylist[] = []
   private changes = 0
   private playlistCount = 0
@@ -110,7 +110,7 @@ export class MockApi {
     this.accessTokens.clear()
   }
 
-  /** A playlist made beforehand, with these tracks (by title; the first track of that title). */
+  /** A playlist made beforehand, with these tracks (by title; the first track of that title). It comes first. */
   addPlaylist(name: string, trackTitles: string[] = []): MockPlaylist {
     const playlist: MockPlaylist = {
       id: `00000000-0000-4000-9000-${String(++this.playlistCount).padStart(12, '0')}`,
@@ -118,7 +118,8 @@ export class MockApi {
       changed: ++this.changes,
       items: trackTitles.map((title) => ({ id: `item-${++this.changes}`, trackId: this.tracks.find((t) => t.title === title)!.id })),
     }
-    this.playlists.push(playlist)
+    // As the API: a new playlist comes first.
+    this.playlists.unshift(playlist)
     return playlist
   }
 
@@ -232,6 +233,7 @@ export class MockApi {
       '@type': 'Playlist',
       id: playlist.id,
       name: playlist.name,
+      position: this.playlists.indexOf(playlist),
       trackCount: tracks.length,
       durationMs: tracks.length * TRACK_SECONDS * 1000,
       covers: albums.filter((a) => a.cover).slice(0, 4).map((a) => this.signed(`/api/albums/${a.id}/cover`)),
@@ -345,12 +347,11 @@ export class MockApi {
         return invalid('name: This value should not be blank.')
       }
       const playlist = { id: `00000000-0000-4000-9000-${String(++this.playlistCount).padStart(12, '0')}`, name, changed: ++this.changes, items: [] }
-      this.playlists.push(playlist)
+      this.playlists.unshift(playlist)
       return reply(201, this.playlistJson(playlist))
     }
     if (path === '/api/playlists') {
-      const sorted = [...this.playlists].sort((a, b) => b.changed - a.changed)
-      return reply(200, this.collection('/api/playlists', sorted.map((p) => this.playlistJson(p)), page))
+      return reply(200, this.collection('/api/playlists', this.playlists.map((p) => this.playlistJson(p)), page))
     }
     if ((match = /^\/api\/playlists\/([^/]+)(\/items)?$/.exec(path))) {
       const playlist = this.playlists.find((p) => p.id === match![1])
@@ -359,12 +360,22 @@ export class MockApi {
       }
       const items = match[2] !== undefined
       if (!items && request.method() === 'PATCH') {
-        const { name } = request.postDataJSON() as { name?: unknown }
-        if (!validName(name)) {
+        const { name, position } = request.postDataJSON() as { name?: unknown; position?: unknown }
+        if (name !== undefined && !validName(name)) {
           return invalid('name: This value is not valid.')
         }
-        playlist.name = name
-        playlist.changed = ++this.changes
+        if (position !== undefined && (typeof position !== 'number' || !Number.isInteger(position) || position < 0)) {
+          return invalid('position: This value should be either positive or zero.')
+        }
+        if (typeof name === 'string' && name !== playlist.name) {
+          playlist.name = name
+          playlist.changed = ++this.changes
+        }
+        if (typeof position === 'number') {
+          // Moving isn't a change to the playlist (no updatedAt): only its place among the others.
+          this.playlists.splice(this.playlists.indexOf(playlist), 1)
+          this.playlists.splice(Math.min(position, this.playlists.length), 0, playlist)
+        }
         return reply(200, this.playlistJson(playlist))
       }
       if (!items && request.method() === 'DELETE') {
