@@ -236,7 +236,7 @@ function Progress({ disabled }: { disabled: boolean }) {
         aria-label="Position in the track"
         aria-valuetext={`${formatDuration(shown * 1000)} of ${formatDuration(duration * 1000)}`}
         style={{ '--fill': `${fill}%` } as CSSProperties}
-        className="pill-slider flex-1"
+        className="player-slider flex-1"
       />
       <span className="w-10">{formatDuration(duration * 1000)}</span>
     </div>
@@ -318,7 +318,7 @@ function Volume() {
         onChange={(event) => setVolume(Number(event.target.value))}
         aria-label="Volume"
         style={{ '--fill': `${(muted ? 0 : volume) * 100}%` } as CSSProperties}
-        className="pill-slider w-28"
+        className="player-slider w-28"
       />
     </div>
   )

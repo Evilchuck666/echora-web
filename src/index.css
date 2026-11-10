@@ -29,10 +29,11 @@
 @layer components {
   /*
    * The sliders of the player bar (position in the track, volume): a thin track, filled up to the value (--fill, set
-   * by the component, as a styled slider loses the browser's own fill), and a pill-shaped thumb. Styled by hand, so
-   * they look the same in Chromium and Firefox; the tall box keeps them easy to grab.
+   * by the component, as a styled slider loses the browser's own fill), and a round thumb with a white ring, like
+   * Firefox's own but a little smaller (14px rather than 16px). Styled by hand, so they look the same in Chromium and
+   * Firefox; the tall box keeps them easy to grab.
    */
-  .pill-slider {
+  .player-slider {
     appearance: none;
     height: 1rem;
     background: transparent;
@@ -55,11 +56,13 @@
     }
     &::-webkit-slider-thumb {
       appearance: none;
-      width: 18px;
-      height: 10px;
+      width: 14px;
+      height: 14px;
       /* Centred on the 4px track. */
-      margin-top: -3px;
-      border-radius: 9999px;
+      margin-top: -5px;
+      box-sizing: border-box;
+      border: 4px solid white;
+      border-radius: 50%;
       background: var(--color-violet-400);
     }
 
@@ -74,10 +77,11 @@
       background: var(--color-violet-400);
     }
     &::-moz-range-thumb {
-      width: 18px;
-      height: 10px;
-      border: 0;
-      border-radius: 9999px;
+      width: 14px;
+      height: 14px;
+      box-sizing: border-box;
+      border: 4px solid white;
+      border-radius: 50%;
       background: var(--color-violet-400);
     }
   }
