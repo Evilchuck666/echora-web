@@ -49,7 +49,7 @@ Conventions:
 
 ## Production
 
-Not deployed on its own: `../Echora`'s production image builds this repository (its `compose.prod.yaml` passes it as the `web` build context, `WEB_DIR`, and its Dockerfile runs `bun install --frozen-lockfile` and `bun run build`) and its Caddy serves `dist/` at the root of the site, falling back to `index.html` for the app's routes; `/api`, `/bundles` and `/.well-known` go to the API. So `bun run build` must keep working from a clean checkout, `dist/` must stay self-contained, and new top-level routes must not start with those prefixes. `.dockerignore` keeps `node_modules`, reports and `e2e/.env` out of that build context. `bun run preview` proxies `/api` to the local API. `ECHORA_E2E_BASE_URL` runs the live tests against a deployment.
+Not deployed on its own: `../Echora`'s production image builds this repository (its `compose.prod.yaml` passes it as the `web` build context, `WEB_DIR`, and its Dockerfile runs `bun install --frozen-lockfile` and `bun run build`) and its Caddy serves `dist/` at the root of the site, falling back to `index.html` for the app's routes; `/api`, `/bundles` and `/.well-known` go to the API. So `bun run build` must keep working from a clean checkout, `dist/` must stay self-contained, and new top-level routes must not start with those prefixes. `.dockerignore` keeps `node_modules`, reports and `e2e/.env` out of that build context. `bun run preview` proxies `/api` to the local API. `ECHORA_E2E_BASE_URL` runs the live tests against a deployment. The API's CI (job "Production image") builds this repository's `main` into its production image and smoke-tests it: a change that breaks `bun install --frozen-lockfile` or `bun run build` there fails the API's CI too.
 
 ## Decided stack
 
