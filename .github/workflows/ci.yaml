@@ -44,6 +44,15 @@ jobs:
       - name: Install Playwright's Chromium and Firefox
         run: bunx playwright install --with-deps chromium firefox
 
+      # Firefox plays audio only through a sound server, and the runner has none (no sound card either): without it the
+      # tracks of the tests never move on. PulseAudio gives it a silent output (module-always-sink's null sink).
+      # Chromium doesn't need it: headless, it has a fake audio output of its own.
+      - name: Start a sound server for Firefox
+        run: |
+          sudo apt-get install --yes --no-install-recommends pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl info | grep -E 'Server Name|Default Sink'
+
       # Against the mock API, in Chromium and in Firefox (with its own autoplay rules): the live tests need a running
       # Echora API and are run by hand.
       - name: End-to-end tests
