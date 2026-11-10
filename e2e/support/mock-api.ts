@@ -475,7 +475,11 @@ export class MockApi {
     }
     if (path === '/api/albums') {
       const artistId = url.searchParams.get('artist')?.split('/').pop()
-      const albums = this.albums.filter((a) => !artistId || a.artistId === artistId).sort((a, b) => (a.year ?? 0) - (b.year ?? 0))
+      const artistName = (album: MockAlbum) => this.artists.find((a) => a.id === album.artistId)!.name
+      // As the API sorts them: album artist by name, then year and title (by year for one artist).
+      const albums = this.albums
+        .filter((a) => !artistId || a.artistId === artistId)
+        .sort((a, b) => artistName(a).localeCompare(artistName(b)) || (a.year ?? 0) - (b.year ?? 0) || a.title.localeCompare(b.title))
       return reply(200, this.collection(`/api/albums${artistId ? `?artist=${encodeURIComponent(`/api/artists/${artistId}`)}` : ''}`, albums.map((a) => this.albumJson(a)), page))
     }
     if ((match = /^\/api\/albums\/([^/]+)$/.exec(path))) {

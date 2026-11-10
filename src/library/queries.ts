@@ -40,7 +40,7 @@ export function useArtistAlbums(artistId: string) {
   })
 }
 
-/** Every album of the library, by year and title (the API's order). */
+/** Every album of the library, in its order (the API's): album artists by name, then year and title. */
 export function useAlbums() {
   return useInfiniteQuery({
     queryKey: ['albums'],

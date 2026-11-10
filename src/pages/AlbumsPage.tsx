@@ -5,7 +5,7 @@ import { Spinner } from '../components/Spinner'
 import { plural } from '../library/format'
 import { useAlbums } from '../library/queries'
 
-/** Every album of the library, by year and title, with its artist. */
+/** Every album of the library, with its artist, in the library's order: artist after artist, each one's by year. */
 export function AlbumsPage() {
   const albums = useAlbums()
   const members = albums.data?.pages.flatMap((page) => page.member) ?? []

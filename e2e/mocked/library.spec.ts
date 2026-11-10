@@ -77,14 +77,14 @@ test.describe('infinite scroll', () => {
 test.describe('albums and tracks of the whole library', () => {
   test.beforeEach(async ({ signIn }) => signIn())
 
-  test('the Albums page lists every album, by year, with its artist', async ({ page }) => {
+  test('the Albums page lists every album, artist after artist, and the albums of each artist by year', async ({ page }) => {
     await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Albums' }).click()
 
     await expect(page).toHaveURL('/albums')
     await expect(page.getByRole('heading', { name: 'Albums' })).toBeVisible()
     await expect(page.getByRole('main')).toContainText('4 albums')
     const titles = await page.getByRole('main').getByRole('listitem').locator('p.font-medium').allTextContents()
-    expect(titles).toEqual(['Killer', 'Ace of Spades', 'Breaker', 'Balls to the Wall'])
+    expect(titles).toEqual(['Breaker', 'Balls to the Wall', 'Killer', 'Ace of Spades'])
     await expect(page.getByRole('main')).toContainText('Alice Cooper · 1971')
 
     await page.getByRole('main').getByRole('link', { name: /Breaker/ }).click()
