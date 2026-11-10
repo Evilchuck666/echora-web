@@ -6,5 +6,11 @@
       "path": "."
     }
   ],
-  "settings": {}
+  "settings": {
+    // Window-wide settings in .vscode/settings.json don't apply when the project is opened through this file, so this
+    // one is repeated here: the Tailwind language mode, where @apply, @theme... aren't unknown at-rules for the CSS linter.
+    "files.associations": {
+      "*.css": "tailwindcss"
+    }
+  }
 }
