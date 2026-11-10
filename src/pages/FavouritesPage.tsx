@@ -22,9 +22,10 @@ export function FavouritesPage({ kind }: { kind: FavouriteKind }) {
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <h1 className="text-3xl font-semibold tracking-tight">Favourites</h1>
       <nav aria-label="Favourites" className="mt-4 mb-6 flex gap-2">
-        <Tab to="/favourites">Tracks</Tab>
-        <Tab to="/favourites/albums">Albums</Tab>
+        {/* In the sidebar's order (Artists, Albums, Tracks); /favourites itself opens on the tracks, the most used. */}
         <Tab to="/favourites/artists">Artists</Tab>
+        <Tab to="/favourites/albums">Albums</Tab>
+        <Tab to="/favourites">Tracks</Tab>
       </nav>
       {kind === 'track' ? <FavouriteTracks /> : kind === 'album' ? <FavouriteAlbums /> : <FavouriteArtists />}
     </main>
