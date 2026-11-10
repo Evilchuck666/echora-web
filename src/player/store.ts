@@ -8,6 +8,8 @@ export interface PlayerTrack {
   durationMs?: number | null
   /** Signed, valid for a few hours; the engine fetches the track again for a fresh one when it has expired. */
   streamUrl?: string
+  /** Whether GET /api/tracks/{id} has lyrics for it (the lyrics panel). */
+  hasLyrics?: boolean
   artist?: { id?: string; name?: string }
   album?: { id?: string; title?: string; coverUrl?: string | null }
 }

@@ -116,6 +116,50 @@ test('a search result plays on its own', async ({ page }) => {
   await expect(player(page).getByRole('button', { name: 'Next' })).toBeDisabled()
 })
 
+test('the lyrics panel follows the track that is playing', async ({ page, api }) => {
+  await openAlbum(page, 'Killer')
+  await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
+  const lyricsButton = player(page).getByRole('button', { name: 'Lyrics' })
+  const panel = page.getByRole('complementary', { name: 'Lyrics' })
+
+  await lyricsButton.click()
+  await expect(lyricsButton).toHaveAttribute('aria-expanded', 'true')
+  await expect(panel.getByRole('heading', { name: 'Under My Wheels' })).toBeVisible()
+  await expect(panel).toContainText('Under My Wheels, the first line')
+  await expect(panel).toContainText('The chorus')
+
+  // The next track has no lyrics: the panel says so, without asking the API.
+  const trackRequests = () => api.requests.filter((r) => /^GET \/api\/tracks\/[^/?]+$/.test(r)).length
+  const before = trackRequests()
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await expect(panel.getByRole('heading', { name: 'Be My Lover' })).toBeVisible()
+  await expect(panel).toContainText('This track has no lyrics.')
+  expect(trackRequests()).toBe(before)
+
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await expect(panel).toContainText('Halo of Flies, the first line')
+
+  await page.keyboard.press('Escape')
+  await expect(panel).toHaveCount(0)
+  await expect(lyricsButton).toHaveAttribute('aria-expanded', 'false')
+  await expectPlaying(page)
+})
+
+test('a track without lyrics can not open the panel', async ({ page }) => {
+  await openAlbum(page, 'Killer')
+  await page.getByRole('button', { name: 'Play Be My Lover' }).click()
+  await expect(player(page).getByRole('link').first()).toHaveText('Be My Lover')
+
+  await expect(player(page).getByRole('button', { name: 'Lyrics' })).toBeDisabled()
+
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await player(page).getByRole('button', { name: 'Lyrics' }).click()
+  const panel = page.getByRole('complementary', { name: 'Lyrics' })
+  await expect(panel).toContainText('Halo of Flies, the first line')
+  await panel.getByRole('button', { name: 'Close the lyrics' }).click()
+  await expect(panel).toHaveCount(0)
+})
+
 test('an expired stream URL is renewed and the track plays', async ({ page, api }) => {
   await openAlbum(page, 'Killer')
   api.expiredStreams = 1

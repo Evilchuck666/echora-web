@@ -299,7 +299,7 @@ export class MockApi {
     }
     if ((match = /^\/api\/tracks\/([^/]+)$/.exec(path))) {
       const track = this.tracks.find((t) => t.id === match![1])
-      return track ? reply(200, { ...this.trackJson(track), lyrics: track.hasLyrics ? 'La la la' : null }) : notFound()
+      return track ? reply(200, { ...this.trackJson(track), lyrics: track.hasLyrics ? `${track.title}, the first line\nThe second line\n\nThe chorus` : null }) : notFound()
     }
     if (path === '/api/search') {
       return reply(200, this.search(url.searchParams.get('q') ?? '', Number(url.searchParams.get('limit') ?? 10)))

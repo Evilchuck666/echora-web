@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { Cover } from '../components/Cover'
 import { formatDuration } from '../library/format'
 import { next, previous, seek, seekBy, setVolume, toggleMute, togglePlay } from './engine'
-import { MutedIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon, VolumeIcon } from './icons'
+import { LyricsIcon, MutedIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon, VolumeIcon } from './icons'
+import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
 import { selectCurrentTrack, usePlayer } from './store'
 
 /** Arrow keys move this many seconds in the track. */
@@ -11,7 +12,8 @@ const ARROW_SEEK_SECONDS = 5
 
 /**
  * The player, fixed at the bottom of every signed-in page once something has been played. Space plays and pauses,
- * the left and right arrows move in the track, unless the focus is on something that uses those keys itself.
+ * the left and right arrows move in the track, unless the focus is on something that uses those keys itself. The
+ * lyrics panel opens above it and stays open from one track to the next.
  */
 export function PlayerBar() {
   const track = usePlayer(selectCurrentTrack)
@@ -19,6 +21,7 @@ export function PlayerBar() {
   const buffering = usePlayer((state) => state.buffering)
   const error = usePlayer((state) => state.error)
   const hasNext = usePlayer((state) => state.index + 1 < state.queue.length)
+  const [lyricsOpen, setLyricsOpen] = useState(false)
 
   usePlayerShortcuts(track !== undefined)
 
@@ -86,9 +89,24 @@ export function PlayerBar() {
             <Progress />
           </div>
 
-          <Volume />
+          <div className="flex shrink-0 items-center justify-end gap-3 md:w-1/4">
+            <button
+              type="button"
+              onClick={() => setLyricsOpen((open) => !open)}
+              disabled={!lyricsOpen && track.hasLyrics === false}
+              aria-label="Lyrics"
+              aria-expanded={lyricsOpen}
+              aria-controls={lyricsOpen ? LYRICS_PANEL_ID : undefined}
+              title={track.hasLyrics === false ? 'This track has no lyrics' : undefined}
+              className="p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 aria-expanded:text-violet-400"
+            >
+              <LyricsIcon />
+            </button>
+            <Volume />
+          </div>
         </div>
       </section>
+      {lyricsOpen && <LyricsPanel track={track} onClose={() => setLyricsOpen(false)} />}
     </>
   )
 }
@@ -145,7 +163,7 @@ function Volume() {
   const muted = usePlayer((state) => state.muted)
 
   return (
-    <div className="hidden w-1/4 items-center justify-end gap-2 md:flex">
+    <div className="hidden items-center gap-2 md:flex">
       <button type="button" onClick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'} className="p-1 text-neutral-300 hover:text-white">
         {muted || volume === 0 ? <MutedIcon /> : <VolumeIcon />}
       </button>

@@ -48,3 +48,16 @@ export const NowPlayingIcon = ({ className }: IconProps) => (
     <path d="M5 10h3v9H5zM10.5 5h3v14h-3zM16 13h3v6h-3z" />
   </svg>
 )
+
+/** Lines of text with a microphone: the lyrics. */
+export const LyricsIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M3 5h11v2H3zM3 10h8v2H3zM3 15h6v2H3zM17 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3Zm-5 7h1.5a3.5 3.5 0 0 0 7 0H22a5 5 0 0 1-4.25 4.94V19h-1.5v-3.06A5 5 0 0 1 12 11Z" />
+  </svg>
+)
+
+export const CloseIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6 10.6 12 5 6.4z" />
+  </svg>
+)

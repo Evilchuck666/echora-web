@@ -77,3 +77,17 @@ export function useSearch(query: string) {
     placeholderData: keepPreviousData,
   })
 }
+
+/**
+ * The lyrics of a track, lines separated by \n, or `null` when its tags have none. Lists only say `hasLyrics`: the
+ * lyrics come with the track itself (GET /api/tracks/{id}). They don't change while the app is open.
+ */
+export function useLyrics(trackId: string | undefined) {
+  return useQuery({
+    queryKey: ['track', trackId],
+    queryFn: () => unwrap(api.GET('/api/tracks/{id}', { params: { path: { id: trackId! } } })),
+    select: (track) => track.lyrics ?? null,
+    enabled: trackId !== undefined,
+    staleTime: Infinity,
+  })
+}

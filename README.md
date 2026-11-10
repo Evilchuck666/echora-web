@@ -30,9 +30,10 @@ Echora Web is in early development. What it does so far:
 - **Sign in once**: the client signs in with your Echora account and keeps the session alive by refreshing its token on its own, even with the app open in several tabs.
 - **Browse your library**: artists with their photos, their albums and each album's tracks, in the order of the tags (disc and track number), with album covers.
 - **A player that follows you**: play an album or a single track, and keep listening while you browse. Seek anywhere, skip, change the volume (remembered), use the space bar and arrow keys, or your keyboard's media keys and the system's media controls.
+- **Read along**: open the lyrics of the track that is playing (from its tags), and they follow the player from one track to the next.
 - **Search everything at once**: one field in the header finds artists, albums and tracks, every word in any order, ignoring accents (`motorhead` finds Motörhead). Press `/` to jump to it.
 
-Coming next: shuffle and repeat, a queue you can see and reorder, and the lyrics of the track that is playing.
+Coming next: shuffle and repeat, and a queue you can see and reorder.
 
 ---
 
@@ -155,7 +156,7 @@ GitHub Actions (`.github/workflows/ci.yaml`) runs the lint, the build, the unit 
 
 ## 🚧 Status
 
-Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing and searching the library, and playing it work. Next: shuffle and repeat, a queue panel, and lyrics.
+Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing and searching the library, playing it and reading the lyrics work. Next: shuffle and repeat, and a queue panel.
 
 ---
 
