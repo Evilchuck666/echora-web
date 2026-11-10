@@ -43,6 +43,7 @@ function slim(track: PlayerTrack): PlayerTrack {
     id: track.id,
     title: track.title,
     durationMs: track.durationMs,
+    format: track.format,
     hasLyrics: track.hasLyrics,
     favourite: track.favourite,
     artist: track.artist && { id: track.artist.id, name: track.artist.name },

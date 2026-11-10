@@ -1,6 +1,8 @@
 import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
 import { clearSavedQueue, readSavedQueue, writeSavedQueue } from './saved-queue'
+// Asks the API to convert the next tracks to Opus ahead of time; it watches the store on its own.
+import './transcodes'
 import { usePlayer, type PlayerState, type PlayerTrack, type Quality, type QueueEntry, type RepeatMode } from './store'
 
 // The audio of the app lives outside React, so the music goes on while pages change. Two audio elements: `audio`

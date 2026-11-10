@@ -10,6 +10,8 @@ export interface PlayerTrack {
   streamUrl?: string
   /** The audio converted to Opus, about a quarter of the size (data saver); FLAC tracks only, null for MP3. */
   opusStreamUrl?: string | null
+  /** "flac" or "mp3": which tracks have an Opus version, also once the stream URLs are gone (saved-queue.ts). */
+  format?: string
   /** Whether GET /api/tracks/{id} has lyrics for it (the lyrics panel). */
   hasLyrics?: boolean
   /** Whether it was one of the user's favourites when it was queued (the heart in the bar; changes win, see favourites.ts). */

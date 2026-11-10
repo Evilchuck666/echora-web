@@ -120,3 +120,30 @@ test('switching the quality keeps playing where the track was', async ({ page, a
   expect(Number(await position(page).inputValue())).toBeGreaterThan(2.5)
   await expectPlaying(page)
 })
+
+test('with the data saver on, the API is asked to convert the next FLAC tracks ahead of time', async ({ page, api }) => {
+  const killer = api.tracks.filter((track) => track.albumId === api.albumTitled('Killer').id).map((track) => track.id)
+  await playAlbum(page, 'Killer')
+  await expectPlaying(page)
+  // Not with the original files.
+  expect(api.transcodes).toEqual([])
+
+  await player(page).getByRole('button', { name: 'Audio quality: Original' }).click()
+  await page.getByRole('menuitemradio', { name: /Data saver/ }).click()
+
+  await expect.poll(() => api.transcodes.at(-1)?.tracks).toEqual(killer.slice(1))
+  const device = api.transcodes[0].device
+  expect(device).toMatch(/^[0-9a-f-]{36}$/)
+
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => api.transcodes.at(-1)?.tracks).toEqual(killer.slice(2))
+  expect(api.transcodes.at(-1)?.device).toBe(device)
+
+  // Back to the original files: the list is cancelled, once.
+  await player(page).getByRole('button', { name: 'Audio quality: Data saver' }).click()
+  await page.getByRole('menuitemradio', { name: /Original/ }).click()
+  await expect.poll(() => api.transcodes.at(-1)?.tracks).toEqual([])
+  const count = api.transcodes.length
+  await page.waitForTimeout(1000)
+  expect(api.transcodes).toHaveLength(count)
+})

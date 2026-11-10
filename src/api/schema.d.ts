@@ -416,6 +416,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transcodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Converts the tracks a device is about to play to Opus, ahead of time
+         * @description The first request for a track's `opusStreamUrl` waits for its conversion (a few seconds). Send the next tracks of the queue (at most 20, next one first) to have them converted in the background, so they are ready when the player asks for them. Answers at once, without waiting for any conversion. Each device of an account has its own list, identified by `device`: a UUID the client generates once and keeps. A request replaces the previous one of the same device only: the tracks of its older request that are not converted yet are dropped, so send the whole upcoming list every time the queue changes. An empty list only cancels the previous request of the device. The lists of an account's 5 most recent devices are kept; those of older devices are dropped. The lists of every device and user take turns, one track each. MP3 tracks (no `opusStreamUrl`), unknown tracks, tracks already converted and tracks being converted are left out. The server converts a limited number of tracks at once (TRANSCODE_WORKERS, 1 by default).
+         */
+        post: operations["transcode_tracks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -1823,6 +1843,74 @@ export interface operations {
             };
             /** @description The byte range asked for is outside the file */
             416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    transcode_tracks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The device, and the tracks it is about to play, next one first */
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description Identifier of the device: a UUID generated once by the client (e.g. crypto.randomUUID()) and kept for good
+                     * @example 9a7f3c52-1d4e-4b8a-9c6f-0e2d5b7a1c34
+                     */
+                    device: string;
+                    /**
+                     * @description Track ids or IRIs (/api/tracks/{id}); duplicates are ignored
+                     * @example [
+                     *       "/api/tracks/0199e1f0-6b1e-7d3c-9a4b-2f5e8c7d1a00",
+                     *       "0199e1f0-6b1e-7d3c-9a4b-2f5e8c7d1a01"
+                     *     ]
+                     */
+                    tracks: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Accepted: the conversions run in the background, after the response. Each track that has an Opus version is in one of the lists; the others (MP3, unknown tracks) in none. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Tracks that will be converted, one after the other, in this order */
+                        queued: string[];
+                        /** @description Tracks already converted: their opusStreamUrl answers at once */
+                        ready: string[];
+                        /** @description Tracks being converted right now */
+                        converting: string[];
+                    };
+                };
+            };
+            /** @description The body is not JSON */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No device, a device that is not a UUID, more than 20 tracks, or something that is neither a track id nor its IRI */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

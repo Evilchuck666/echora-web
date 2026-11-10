@@ -67,6 +67,8 @@ export class MockApi {
 
   /** The user's favourites of each kind, by id, newest first (as the API lists them). */
   readonly favourites: Record<'track' | 'album' | 'artist', string[]> = { track: [], album: [], artist: [] }
+  /** Bodies of POST /api/transcodes (the tracks to convert to Opus ahead of time), in order. */
+  readonly transcodes: { device: string; tracks: string[] }[] = []
   /** The next favourite changes answer 500, as when the API is down. */
   failFavourites = 0
 
@@ -280,6 +282,18 @@ export class MockApi {
       return reply(401, { code: 401, message: token ? 'Invalid JWT Token' : 'JWT Token not found' })
     }
     const page = Number(url.searchParams.get('page') ?? 1)
+
+    // Opus ahead of time: the same checks as the API; nothing is converted (the mock's Opus is the same tone).
+    if (request.method() === 'POST' && path === '/api/transcodes') {
+      const body = request.postDataJSON() as { device?: unknown; tracks?: unknown }
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (typeof body.device !== 'string' || !uuid.test(body.device) || !Array.isArray(body.tracks) || body.tracks.length > 20) {
+        return reply(422, { '@type': 'ConstraintViolation', title: 'An error occurred', detail: 'Invalid request', status: 422 })
+      }
+      const tracks = body.tracks.map(String)
+      this.transcodes.push({ device: body.device, tracks })
+      return reply(202, { queued: tracks, ready: [], converting: [] })
+    }
 
     // Favourites: PUT and DELETE are idempotent (204), the lists are newest first.
     if ((match = /^\/api\/(track|album|artist)s\/([^/]+)\/favourite$/.exec(path))) {
