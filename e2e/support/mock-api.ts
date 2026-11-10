@@ -9,6 +9,9 @@ export const PASSWORD = 'secret'
 /** Length of the audio every track serves, in seconds. */
 export const TRACK_SECONDS = 12
 
+/** The API's REFRESH_TOKEN_GRACE_SECONDS. */
+const GRACE_SECONDS = 300
+
 interface MockArtist {
   id: string
   name: string
@@ -59,9 +62,13 @@ export class MockApi {
 
   /** The next stream requests answer 401, as an expired signed URL does. */
   expiredStreams = 0
+  /** The next refresh is carried out, but its response never reaches the page (as when the network drops). */
+  loseNextRefreshResponse = false
 
   private accessTokens = new Set<string>()
   private refreshTokens = new Set<string>()
+  /** Like the API's grace period: presented refresh token → the one issued for it, and when. */
+  private successors = new Map<string, { token: string; at: number }>()
   private issued = 0
   private failures = new Map<number, number>()
   private readonly options: MockApiOptions
@@ -211,10 +218,25 @@ export class MockApi {
     if (request.method() === 'POST' && path === '/api/token/refresh') {
       const { refresh_token } = request.postDataJSON() as { refresh_token: string }
       this.refreshes.push(refresh_token)
-      if (!this.refreshTokens.delete(refresh_token)) {
+      // The API's grace period: a spent token whose successor is unused, presented within 5 minutes, is refreshed
+      // as that successor.
+      const successor = this.successors.get(refresh_token)
+      const spent = this.refreshTokens.has(refresh_token)
+        ? refresh_token
+        : successor && Date.now() - successor.at < GRACE_SECONDS * 1000 && this.refreshTokens.has(successor.token)
+          ? successor.token
+          : null
+      if (!spent) {
         return reply(401, { code: 401, message: 'JWT Refresh Token Not Found' })
       }
-      return reply(200, this.issue())
+      this.refreshTokens.delete(spent)
+      const issued = this.issue()
+      this.successors.set(refresh_token, { token: issued.refresh_token, at: Date.now() })
+      if (this.loseNextRefreshResponse) {
+        this.loseNextRefreshResponse = false
+        return route.abort('connectionreset')
+      }
+      return reply(200, issued)
     }
     if (request.method() === 'POST' && path === '/api/logout') {
       const { refresh_token } = request.postDataJSON() as { refresh_token: string }

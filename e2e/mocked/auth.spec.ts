@@ -72,10 +72,31 @@ test('two tabs with an expired JWT refresh it once', async ({ context, page, sig
 
 test('a JWT the API rejects is refreshed and the request sent again', async ({ page, signIn, api }) => {
   await signIn()
+  // Wait for every request of the sign-in (the header's account), so none of them meets the rejected JWT.
+  await expect(page.getByRole('banner')).toContainText(USERNAME)
   api.rejectAccessTokens()
 
   await page.reload()
 
   await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
   expect(api.refreshes).toHaveLength(1)
+})
+
+test('a refresh whose response was lost does not sign out', async ({ page, signIn, api }) => {
+  await signIn()
+  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  await page.evaluate(() => {
+    const session = JSON.parse(localStorage.getItem('echora.session')!)
+    localStorage.setItem('echora.session', JSON.stringify({ ...session, token: 'x.eyJleHAiOjB9.x' }))
+  })
+  // The API rotates the refresh token, but the new pair never arrives: the client still holds the spent one.
+  api.loseNextRefreshResponse = true
+
+  await page.reload()
+
+  await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
+  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  // The spent token was presented again, and the API's grace period answered it.
+  expect(api.refreshes).toHaveLength(2)
+  expect(api.refreshes[0]).toBe(api.refreshes[1])
 })

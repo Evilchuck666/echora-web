@@ -55,3 +55,28 @@ test('signing out invalidates the refresh token on the server', async ({ page, r
   const response = await request.post(`${API}/api/token/refresh`, { data: { refresh_token: refreshToken }, ignoreHTTPSErrors: true })
   expect(response.status()).toBe(401)
 })
+
+test('a refresh whose response was lost does not sign out (the API grace period)', async ({ page }) => {
+  await signIn(page)
+  await page.evaluate(() => {
+    const session = JSON.parse(localStorage.getItem('echora.session')!)
+    localStorage.setItem('echora.session', JSON.stringify({ ...session, token: 'x.eyJleHAiOjB9.x' }))
+  })
+  // The first refresh reaches the API, which rotates the token, but its response never reaches the page.
+  let lost = false
+  await page.route(`${API}/api/token/refresh`, async (route) => {
+    if (lost) {
+      return route.continue()
+    }
+    lost = true
+    await route.fetch()
+    await route.abort('connectionreset')
+  })
+
+  await page.reload()
+
+  await expect(page.getByRole('main').getByRole('list').getByRole('link').first()).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  expect(lost).toBe(true)
+})
