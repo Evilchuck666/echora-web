@@ -108,3 +108,31 @@ export const QualityIcon = ({ className }: IconProps) => (
     <path d="M12 4a10 10 0 0 0-10 10 9.9 9.9 0 0 0 1.4 5.1l.3.4h16.6l.3-.4A9.9 9.9 0 0 0 22 14 10 10 0 0 0 12 4Zm7.1 13.5H4.9A8 8 0 0 1 4 14a8 8 0 0 1 16 0 8 8 0 0 1-.9 3.5ZM16.6 8.7l-3.7 3.5a2 2 0 1 0 1.4 1.4l3.6-3.6-1.3-1.3Z" />
   </svg>
 )
+
+/** A heart, outlined: not a favourite. */
+export const HeartIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 20.7 10.6 19.4C5.4 14.7 2 11.6 2 7.8 2 4.7 4.4 2.3 7.5 2.3c1.7 0 3.4.8 4.5 2.1 1.1-1.3 2.8-2.1 4.5-2.1 3.1 0 5.5 2.4 5.5 5.5 0 3.8-3.4 6.9-8.6 11.6L12 20.7Zm0-2.7c4.8-4.3 8-7.2 8-10.2 0-2-1.5-3.5-3.5-3.5-1.5 0-3 1-3.6 2.4h-1.8C10.5 5.3 9 4.3 7.5 4.3 5.5 4.3 4 5.8 4 7.8c0 3 3.2 5.9 8 10.2Z" />
+  </svg>
+)
+
+/** A heart, filled: a favourite. */
+export const HeartFilledIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 20.7 10.6 19.4C5.4 14.7 2 11.6 2 7.8 2 4.7 4.4 2.3 7.5 2.3c1.7 0 3.4.8 4.5 2.1 1.1-1.3 2.8-2.1 4.5-2.1 3.1 0 5.5 2.4 5.5 5.5 0 3.8-3.4 6.9-8.6 11.6L12 20.7Z" />
+  </svg>
+)
+
+/** Three lines: the navigation menu. */
+export const MenuIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z" />
+  </svg>
+)
+
+/** A person: the artists. */
+export const ArtistsIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0 10c4.4 0 8 2 8 4.5V22H4v-3.5C4 16 7.6 14 12 14Zm0 2c-3.5 0-6 1.5-6 2.5V20h12v-1.5c0-1-2.5-2.5-6-2.5Z" />
+  </svg>
+)

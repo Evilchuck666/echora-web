@@ -66,6 +66,14 @@ export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; respo
   return data
 }
 
+/** For calls answered without a body (204): resolves once it worked, or throws an ApiError like unwrap(). */
+export async function unwrapEmpty(call: Promise<{ error?: unknown; response: Response }>): Promise<void> {
+  const { error, response } = await call
+  if (error !== undefined || !response.ok) {
+    throw new ApiError(response.status, errorMessage(error) ?? `Request failed (HTTP ${response.status})`)
+  }
+}
+
 // The authenticator answers {code, message}; every other error is a JSON-LD Error with `title` and `detail`.
 function errorMessage(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) {

@@ -9,3 +9,19 @@
     @apply bg-neutral-950 text-neutral-100 antialiased;
   }
 }
+
+@theme {
+  /* The navigation drawer of small screens (NavDrawer) slides in from the left. */
+  --animate-slide-in-left: slide-in-left 150ms ease-out;
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-left {
+    animation: none;
+  }
+}

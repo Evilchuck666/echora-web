@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
-import { Cover } from '../components/Cover'
+import { useSearchParams } from 'react-router'
 import { AlbumCard, ArtistCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
-import { formatDuration, plural } from '../library/format'
+import { TrackItem } from '../components/TrackItem'
+import { plural } from '../library/format'
 import { SEARCH_LIMIT, useSearch } from '../library/queries'
 import { useLeaveSearch } from '../library/search'
-import type { SearchTrack } from '../library/types'
-import { playQueue, togglePlay } from '../player/engine'
-import { NowPlayingIcon, PauseIcon, PlayIcon } from '../player/icons'
-import { QueueMenu } from '../player/QueueMenu'
-import { selectCurrentTrack, usePlayer } from '../player/store'
 
 /** How many results each section shows before "Show all": one row of cards at full width. */
 const COLLAPSED = { artists: 6, albums: 6, tracks: 5 }
@@ -87,7 +82,7 @@ export function SearchPage() {
               <ol className="divide-y divide-neutral-800/70">
                 {tracks.map((track) => (
                   <li key={track.id}>
-                    <TrackResult track={track} />
+                    <TrackItem track={track} />
                   </li>
                 ))}
               </ol>
@@ -137,57 +132,5 @@ function Section<T>({ title, items, total, collapsed, children }: SectionProps<T
         </p>
       )}
     </section>
-  )
-}
-
-/** A matching track: its album cover (a play button on hover), title, artist and album, linking to the album. */
-function TrackResult({ track }: { track: SearchTrack }) {
-  const album = track.album
-  const current = usePlayer((state) => selectCurrentTrack(state)?.id === track.id)
-  const nowPlaying = usePlayer((state) => state.playing) && current
-
-  return (
-    <div className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-neutral-900">
-      <button
-        type="button"
-        onClick={() => (current ? togglePlay() : playQueue([track]))}
-        aria-label={`${nowPlaying ? 'Pause' : 'Play'} ${track.title}`}
-        className="relative w-10 shrink-0"
-      >
-        <Cover url={album?.coverUrl} alt="" className="w-10 rounded" />
-        <span
-          className="absolute inset-0 hidden items-center justify-center rounded bg-black/60 group-focus-within:flex group-hover:flex"
-        >
-          {nowPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
-        </span>
-        {nowPlaying && (
-          <span className="absolute inset-0 flex items-center justify-center rounded bg-black/60 text-violet-300 group-focus-within:hidden group-hover:hidden">
-            <NowPlayingIcon className="h-4 w-4" />
-          </span>
-        )}
-      </button>
-      <div className="min-w-0 flex-1">
-        <Link to={`/albums/${album?.id}`} className={`block truncate hover:underline ${current ? 'text-violet-300' : ''}`}>
-          {track.title}
-        </Link>
-        <p className="truncate text-sm text-neutral-400">
-          <Link to={`/artists/${track.artist?.id}`} className="hover:underline">
-            {track.artist?.name}
-          </Link>
-          {' · '}
-          <Link to={`/albums/${album?.id}`} className="hover:underline">
-            {album?.title}
-          </Link>
-        </p>
-      </div>
-      <span className="w-12 shrink-0 text-right text-sm text-neutral-400 tabular-nums">
-        {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
-      </span>
-      <QueueMenu
-        name={track.title ?? 'Unknown track'}
-        tracks={() => [track]}
-        className="shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100"
-      />
-    </div>
   )
 }

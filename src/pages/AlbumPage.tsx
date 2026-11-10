@@ -1,9 +1,11 @@
 import { Link, useParams } from 'react-router'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { Cover } from '../components/Cover'
+import { FavouriteButton } from '../components/FavouriteButton'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
+import { ON_HOVER } from '../components/TrackItem'
 import { formatDuration, plural } from '../library/format'
 import { useAlbum, useAlbumTracks } from '../library/queries'
 import type { Album, Track } from '../library/types'
@@ -100,6 +102,7 @@ export function AlbumPage() {
               {albumIsCurrent && playing ? <PauseIcon /> : <PlayIcon />}
               {albumIsCurrent && playing ? 'Pause' : 'Play'}
             </button>
+            <FavouriteButton kind="album" id={album.data.id} favourite={album.data.favourite} name={title} className="h-8 w-8" />
             {members.length > 0 && <QueueMenu name={title} tracks={allTracks} />}
           </div>
         </div>
@@ -222,6 +225,14 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
           </Link>
         )}
       </div>
+      <FavouriteButton
+        kind="track"
+        id={track.id}
+        favourite={track.favourite}
+        name={track.title ?? 'Unknown track'}
+        className={`-my-1 h-8 w-8 shrink-0 ${ON_HOVER} aria-pressed:opacity-100`}
+        iconClassName="h-4.5 w-4.5"
+      />
       {track.hasLyrics && (
         <span title="Has lyrics" className="shrink-0 rounded border border-neutral-700 px-1.5 text-xs text-neutral-400">
           Lyrics
@@ -233,7 +244,7 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
       <QueueMenu
         name={track.title ?? 'Unknown track'}
         tracks={() => [track]}
-        className="-my-1 shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100"
+        className={`-my-1 shrink-0 ${ON_HOVER} has-aria-expanded:opacity-100`}
       />
     </div>
   )

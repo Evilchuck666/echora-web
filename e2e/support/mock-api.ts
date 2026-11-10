@@ -65,6 +65,11 @@ export class MockApi {
   /** The next refresh is carried out, but its response never reaches the page (as when the network drops). */
   loseNextRefreshResponse = false
 
+  /** The user's favourites of each kind, by id, newest first (as the API lists them). */
+  readonly favourites: Record<'track' | 'album' | 'artist', string[]> = { track: [], album: [], artist: [] }
+  /** The next favourite changes answer 500, as when the API is down. */
+  failFavourites = 0
+
   private accessTokens = new Set<string>()
   private refreshTokens = new Set<string>()
   /** Like the API's grace period: presented refresh token → the one issued for it, and when. */
@@ -136,6 +141,7 @@ export class MockApi {
       id: artist.id,
       name: artist.name,
       ...(artist.image ? { coverUrl: this.signed(`/api/artists/${artist.id}/cover`) } : {}),
+      favourite: this.favourites.artist.includes(artist.id),
     }
   }
 
@@ -148,6 +154,7 @@ export class MockApi {
       title: album.title,
       year: album.year,
       ...(album.cover ? { coverUrl: this.signed(`/api/albums/${album.id}/cover`) } : {}),
+      favourite: this.favourites.album.includes(album.id),
       ...(withArtist ? { artist: { '@id': `/api/artists/${artist.id}`, '@type': 'Artist', id: artist.id, name: artist.name } } : {}),
     }
   }
@@ -173,6 +180,7 @@ export class MockApi {
       streamUrl: this.signed(`/api/tracks/${track.id}/stream`),
       opusStreamUrl: flac ? this.signed(`/api/tracks/${track.id}/stream/opus`) : null,
       hasLyrics: track.hasLyrics,
+      favourite: this.favourites.track.includes(track.id),
     }
   }
 
@@ -201,7 +209,7 @@ export class MockApi {
     const cors = {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Headers': 'authorization, content-type, range',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Expose-Headers': 'content-range, content-length, accept-ranges',
     }
     if (request.method() === 'OPTIONS') {
@@ -272,6 +280,34 @@ export class MockApi {
       return reply(401, { code: 401, message: token ? 'Invalid JWT Token' : 'JWT Token not found' })
     }
     const page = Number(url.searchParams.get('page') ?? 1)
+
+    // Favourites: PUT and DELETE are idempotent (204), the lists are newest first.
+    if ((match = /^\/api\/(track|album|artist)s\/([^/]+)\/favourite$/.exec(path))) {
+      const kind = match[1] as 'track' | 'album' | 'artist'
+      const itemId = match[2]
+      const items: { id: string }[] = kind === 'track' ? this.tracks : kind === 'album' ? this.albums : this.artists
+      if (!items.some((item) => item.id === itemId)) {
+        return notFound()
+      }
+      if (this.failFavourites > 0) {
+        this.failFavourites--
+        return reply(500, { '@type': 'Error', title: 'An error occurred', detail: 'Internal Server Error', status: 500 })
+      }
+      const without = this.favourites[kind].filter((favourite) => favourite !== itemId)
+      this.favourites[kind] = request.method() === 'PUT' ? [itemId, ...without] : without
+      return route.fulfill({ status: 204, headers: cors })
+    }
+    if ((match = /^\/api\/favourites\/(track|album|artist)s$/.exec(path))) {
+      const kind = match[1] as 'track' | 'album' | 'artist'
+      const ids = this.favourites[kind]
+      const members: unknown[] =
+        kind === 'track'
+          ? ids.map((favourite) => this.trackJson(this.tracks.find((t) => t.id === favourite)!))
+          : kind === 'album'
+            ? ids.map((favourite) => this.albumJson(this.albums.find((a) => a.id === favourite)!))
+            : ids.map((favourite) => this.artistJson(this.artists.find((a) => a.id === favourite)!))
+      return reply(200, this.collection(`/api/favourites/${kind}s`, members, page))
+    }
 
     if (path === '/api/me') {
       return reply(200, { '@id': '/api/me', '@type': 'User', id: id(0), username: USERNAME, roles: ['ROLE_USER'] })

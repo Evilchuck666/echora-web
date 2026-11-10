@@ -12,6 +12,8 @@ export interface PlayerTrack {
   opusStreamUrl?: string | null
   /** Whether GET /api/tracks/{id} has lyrics for it (the lyrics panel). */
   hasLyrics?: boolean
+  /** Whether it was one of the user's favourites when it was queued (the heart in the bar; changes win, see favourites.ts). */
+  favourite?: boolean
   artist?: { id?: string; name?: string }
   album?: { id?: string; title?: string; coverUrl?: string | null }
 }

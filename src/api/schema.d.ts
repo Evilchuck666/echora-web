@@ -64,6 +64,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/albums/{id}/favourite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Adds the album to the favourites of the user making the request
+         * @description Idempotent: adding a favourite twice is not an error. The user's favourite albums are listed by GET /api/favourites/albums.
+         */
+        put: operations["add_favourite_album"];
+        post?: never;
+        /**
+         * Removes the album from the favourites of the user making the request
+         * @description Idempotent: removing a favourite that is not there is not an error.
+         */
+        delete: operations["remove_favourite_album"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/favourites/albums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves the collection of Album resources.
+         * @description Retrieves the collection of Album resources.
+         */
+        get: operations["favourites_albums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/artists": {
         parameters: {
             query?: never;
@@ -116,6 +160,50 @@ export interface paths {
          * @description Returns a small square JPEG made from the image in the artist folder (artist or folder, in JPEG, PNG or WebP), or else from TheAudioDB (theaudiodb.com). Authenticate with a JWT, or call the coverUrl of the artist as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.
          */
         get: operations["get_artist_cover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{id}/favourite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Adds the artist to the favourites of the user making the request
+         * @description Idempotent: adding a favourite twice is not an error. The user's favourite artists are listed by GET /api/favourites/artists.
+         */
+        put: operations["add_favourite_artist"];
+        post?: never;
+        /**
+         * Removes the artist from the favourites of the user making the request
+         * @description Idempotent: removing a favourite that is not there is not an error.
+         */
+        delete: operations["remove_favourite_artist"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/favourites/artists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves the collection of Artist resources.
+         * @description Retrieves the collection of Artist resources.
+         */
+        get: operations["favourites_artists"];
         put?: never;
         post?: never;
         delete?: never;
@@ -204,6 +292,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/favourites/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves the collection of Track resources.
+         * @description Retrieves the collection of Track resources.
+         */
+        get: operations["favourites_tracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracks": {
         parameters: {
             query?: never;
@@ -239,6 +347,30 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{id}/favourite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Adds the track to the favourites of the user making the request
+         * @description Idempotent: adding a favourite twice is not an error. The user's favourite tracks are listed by GET /api/favourites/tracks.
+         */
+        put: operations["add_favourite_track"];
+        post?: never;
+        /**
+         * Removes the track from the favourites of the user making the request
+         * @description Idempotent: removing a favourite that is not there is not an error.
+         */
+        delete: operations["remove_favourite_track"];
         options?: never;
         head?: never;
         patch?: never;
@@ -314,6 +446,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             artist?: components["schemas"]["Artist-album.read"];
             title?: string;
             year?: number | null;
@@ -324,6 +461,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             artist?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -352,6 +494,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
             title?: string;
             year?: number | null;
@@ -362,6 +509,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this album is one of the favourites of the user making the request (PUT or DELETE /api/albums/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             artist?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -396,6 +548,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -404,6 +561,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -430,6 +592,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -438,6 +605,11 @@ export interface components {
             readonly id?: string;
             /** @description Signed URL of a thumbnail of the artist (from the artist folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
             coverUrl?: string | null;
+            /**
+             * @description Whether this artist is one of the favourites of the user making the request (PUT or DELETE /api/artists/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -587,6 +759,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -614,6 +791,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -643,6 +825,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -670,6 +857,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -697,6 +889,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -726,6 +923,11 @@ export interface components {
             streamUrl?: string;
             /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
             opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -871,6 +1073,102 @@ export interface operations {
             };
         };
     };
+    add_favourite_album: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Album identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The album is one of the user's favourites (now, or already was) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The album does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_favourite_album: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Album identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The album is not one of the user's favourites (now, or already wasn't) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The album does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    favourites_albums: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Album collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["Album.jsonld-album.read"][];
+                    };
+                    "application/json": components["schemas"]["Album-album.read"][];
+                };
+            };
+        };
+    };
     api_artists_get_collection: {
         parameters: {
             query?: {
@@ -975,6 +1273,102 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    add_favourite_artist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Artist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The artist is one of the user's favourites (now, or already was) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The artist does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_favourite_artist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Artist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The artist is not one of the user's favourites (now, or already wasn't) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The artist does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    favourites_artists: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Artist collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["Artist.jsonld-artist.read"][];
+                    };
+                    "application/json": components["schemas"]["Artist-artist.read"][];
+                };
             };
         };
     };
@@ -1135,6 +1529,32 @@ export interface operations {
             };
         };
     };
+    favourites_tracks: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Track collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["Track.jsonld-track.read"][];
+                    };
+                    "application/json": components["schemas"]["Track-track.read"][];
+                };
+            };
+        };
+    };
     api_tracks_get_collection: {
         parameters: {
             query?: {
@@ -1213,6 +1633,76 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    add_favourite_track: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The track is one of the user's favourites (now, or already was) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    remove_favourite_track: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The track is not one of the user's favourites (now, or already wasn't) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

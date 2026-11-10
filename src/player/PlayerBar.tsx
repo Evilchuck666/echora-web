@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Cover } from '../components/Cover'
+import { FavouriteButton } from '../components/FavouriteButton'
 import { formatDuration } from '../library/format'
 import { AUTOPLAY_BLOCKED, cycleRepeat, next, previous, seek, seekBy, setVolume, toggleMute, togglePlay, toggleShuffle } from './engine'
 import {
@@ -99,6 +100,16 @@ export function PlayerBar() {
                 </Link>
               )}
             </div>
+            {track && (
+              <FavouriteButton
+                kind="track"
+                id={track.id}
+                favourite={track.favourite}
+                name={track.title ?? 'Unknown track'}
+                className="hidden h-8 w-8 shrink-0 sm:flex"
+                iconClassName="h-4.5 w-4.5"
+              />
+            )}
           </div>
 
           <div className="flex shrink-0 flex-col items-center gap-1 md:flex-1">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router'
 import { ArtistImage } from '../components/ArtistImage'
 import { Breadcrumbs } from '../components/Breadcrumbs'
+import { FavouriteButton } from '../components/FavouriteButton'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { AlbumCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
@@ -42,7 +43,10 @@ export function ArtistPage() {
           <p className="text-xs font-medium tracking-wider text-neutral-400 uppercase">Artist</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">{name || ' '}</h1>
           <p className="mt-1 text-sm text-neutral-400">{total !== undefined ? plural(total, 'album') : ' '}</p>
-          {members.length > 0 && <PlayAllButton artistId={id} name={name} />}
+          <div className="mt-4 flex items-center gap-2">
+            {members.length > 0 && <PlayAllButton artistId={id} name={name} />}
+            {artist.data && <FavouriteButton kind="artist" id={artist.data.id} favourite={artist.data.favourite} name={name} className="h-8 w-8" />}
+          </div>
         </div>
       </header>
 
@@ -98,7 +102,7 @@ function PlayAllButton({ artistId, name }: { artistId: string; name: string }) {
       type="button"
       onClick={() => (isCurrent ? togglePlay() : void playAll())}
       disabled={loading}
-      className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
+      className="inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
     >
       {playing ? <PauseIcon /> : <PlayIcon />}
       {playing ? 'Pause' : 'Play all'}
