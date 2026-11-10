@@ -11,7 +11,7 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --project=mocked",
+    "test:e2e": "playwright test --project=mocked --project=mocked-firefox",
     "test:e2e:live": "playwright test --project=live",
     "preview": "vite preview",
     "api:types": "openapi-typescript https://localhost/api/docs.jsonopenapi -o src/api/schema.d.ts"

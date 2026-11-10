@@ -122,7 +122,7 @@ The API documents every endpoint at **https://localhost/api**, and its [README](
 | `bun run typecheck` | Checks the types only |
 | `bun run lint` | Lints the code with [oxlint](https://oxc.rs/docs/guide/usage/linter) |
 | `bun run test` | Runs the unit tests ([Vitest](https://vitest.dev/)) |
-| `bun run test:e2e` | Runs the end-to-end tests ([Playwright](https://playwright.dev/)) in Chromium, against a mock API |
+| `bun run test:e2e` | Runs the end-to-end tests ([Playwright](https://playwright.dev/)) in Chromium and Firefox, against a mock API |
 | `bun run test:e2e:live` | Runs a few end-to-end tests against your running Echora API (see below) |
 | `bun run preview` | Serves the production build locally, passing `/api` to the local API |
 | `bun run api:types` | Regenerates the API types (see [API types](#-api-types)) |
@@ -144,7 +144,7 @@ The **unit tests** cover the logic that runs without a page: the session (one to
 The **end-to-end tests** open the app in Chromium and use it like a person would: signing in, browsing, searching and playing. They run against a mock of the Echora API, so they need neither Docker nor a library. Install Playwright's Chromium once, then run them:
 
 ```sh
-bunx playwright install chromium
+bunx playwright install chromium firefox
 bun run test:e2e
 ```
 
@@ -152,7 +152,7 @@ A few more run against your own Echora API and library, to check that both still
 
 After a failure, `bunx playwright show-report` opens a report with a trace of each failed test.
 
-GitHub Actions (`.github/workflows/ci.yaml`) runs the lint, the build, the unit tests and the end-to-end tests against the mock API on every push to `main` and on pull requests.
+GitHub Actions (`.github/workflows/ci.yaml`) runs the lint, the build, the unit tests and the end-to-end tests against the mock API (in Chromium, and in Firefox with its own autoplay rules) on every push to `main` and on pull requests.
 
 ---
 

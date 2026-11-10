@@ -109,6 +109,10 @@ async function refreshUnlessDone(staleToken: string): Promise<string | null> {
 
   const refreshed = tokensFromResponse(data)
   writeTokens(refreshed)
+  // Firefox passes a tab's localStorage writes on to the other tabs when the current task ends, but releases a Web
+  // Lock as soon as its callback settles, earlier: a tab waiting for the lock could get it first, still read the
+  // spent refresh token and present it again. Ending this task before releasing the lock sends the write first.
+  await new Promise((resolve) => setTimeout(resolve))
   return refreshed.token
 }
 

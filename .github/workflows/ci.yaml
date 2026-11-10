@@ -41,10 +41,11 @@ jobs:
       - name: Unit tests
         run: bun run test
 
-      - name: Install Playwright's Chromium
-        run: bunx playwright install --with-deps chromium
+      - name: Install Playwright's Chromium and Firefox
+        run: bunx playwright install --with-deps chromium firefox
 
-      # Against the mock API: the live tests need a running Echora API and are run by hand.
+      # Against the mock API, in Chromium and in Firefox (with its own autoplay rules): the live tests need a running
+      # Echora API and are run by hand.
       - name: End-to-end tests
         run: bun run test:e2e
 

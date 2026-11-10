@@ -784,3 +784,14 @@ if ('mediaSession' in navigator) {
 }
 
 restoreSavedQueue()
+
+// --- Development: hot module replacement ----------------------------------------------------------------------------
+
+// The dev server swaps an edited module without reloading the page. This one has a life of its own (two audio
+// elements, their listeners, a channel between tabs): swapped, the old engine would go on playing beside the new one,
+// and the controls would drive the new one. So a change to it, or to a module it uses (the store, the saved queue),
+// reloads the whole page instead; the queue comes back paused where it was. (`hot.decline()` would do nothing: Vite
+// keeps it as an empty method.) Production builds leave this out.
+if (import.meta.hot) {
+  import.meta.hot.accept(() => window.location.reload())
+}
