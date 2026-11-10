@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { formatDuration } from '../library/format'
 import { playQueue, togglePlay } from '../player/engine'
@@ -17,13 +18,17 @@ interface TrackItemProps {
   track: ItemTrack
   /** What its play button does: play this track alone, unless given (e.g. play every favourite from this one). */
   onPlay?: () => void
+  /** Shown first in the row, e.g. a handle to drag it. */
+  before?: ReactNode
+  /** Shown last in the row, e.g. a button to remove it from a playlist. */
+  after?: ReactNode
 }
 
 /**
  * A track among others of various albums: its album cover (a play button on hover), title, artist and album (links),
  * a heart, its length and a "⋯" menu. The track loaded in the player is highlighted.
  */
-export function TrackItem({ track, onPlay = () => playQueue([track]) }: TrackItemProps) {
+export function TrackItem({ track, onPlay = () => playQueue([track]), before, after }: TrackItemProps) {
   const album = track.album
   const current = usePlayer((state) => selectCurrentTrack(state)?.id === track.id)
   const nowPlaying = usePlayer((state) => state.playing) && current
@@ -31,6 +36,7 @@ export function TrackItem({ track, onPlay = () => playQueue([track]) }: TrackIte
 
   return (
     <div className="group flex items-center gap-3 rounded-md px-2 py-2 hover:bg-neutral-900">
+      {before}
       <button
         type="button"
         onClick={() => (current ? togglePlay() : onPlay())}
@@ -73,6 +79,7 @@ export function TrackItem({ track, onPlay = () => playQueue([track]) }: TrackIte
         {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
       </span>
       <QueueMenu name={title} tracks={() => [track]} className={`shrink-0 ${ON_HOVER} has-aria-expanded:opacity-100`} />
+      {after}
     </div>
   )
 }

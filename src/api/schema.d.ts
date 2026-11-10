@@ -272,6 +272,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The playlists of the user making the request
+         * @description Only the user's own playlists, the most recently changed first (any change to a playlist or its items counts, including a scan removing one of its tracks). Paginated, 30 per page.
+         */
+        get: operations["api_playlists_get_collection"];
+        put?: never;
+        /**
+         * Creates an empty playlist
+         * @description The name has 1 to 100 characters, without spaces at the start or the end; it need not be unique.
+         */
+        post: operations["api_playlists_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/playlists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A playlist of the user making the request
+         * @description Someone else's playlist is a 404, as if it didn't exist.
+         */
+        get: operations["api_playlists_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a playlist and its items
+         * @description The tracks themselves stay in the library.
+         */
+        delete: operations["api_playlists_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Renames a playlist
+         * @description Send `{"name": "..."}` as application/merge-patch+json. Changes updatedAt.
+         */
+        patch: operations["api_playlists_id_patch"];
+        trace?: never;
+    };
+    "/api/playlists/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The items of a playlist, in its order
+         * @description Each item has its own id (a track added twice is two items), its position (index from 0 in the playlist), the date it was added, and its whole track as GET /api/tracks returns it (signed streamUrl and opusStreamUrl, favourite, album with its coverUrl). Paginated, 30 per page.
+         */
+        get: operations["api_playlists_iditems_get_collection"];
+        put?: never;
+        /**
+         * Adds tracks at the end of a playlist
+         * @description Adds every track given, in this order, at the end of the playlist, all or none: a whole album in one request. The same track may be added several times, also in one request: each appearance is an item of its own.
+         */
+        post: operations["playlist_add_tracks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/playlist_items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Removes an item from a playlist
+         * @description That appearance of the track only; the items after it move up by one.
+         */
+        delete: operations["api_playlist_items_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Moves an item of a playlist
+         * @description Send `{"position": n}` as application/merge-patch+json: the index from 0, in the current order, where the item goes; the items in between shift by one. A position beyond the last item moves it to the end; a negative one is a 422. Answers with the item at its new position.
+         */
+        patch: operations["api_playlist_items_id_patch"];
+        trace?: never;
+    };
     "/api/search": {
         parameters: {
             query?: never;
@@ -476,6 +576,15 @@ export interface components {
             year?: number | null;
         };
         /** @description An album, identified by its album artist and title. */
+        "Album-playlist_item.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
         "Album-search.read_artist.read_album.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -520,6 +629,15 @@ export interface components {
              */
             favourite: boolean;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
+        "Album.jsonld-playlist_item.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
             title?: string;
             year?: number | null;
         };
@@ -576,6 +694,12 @@ export interface components {
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist-playlist_item.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
         "Artist-search.read_artist.read_album.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -620,6 +744,12 @@ export interface components {
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist.jsonld-playlist_item.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
         "Artist.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
@@ -643,6 +773,53 @@ export interface components {
             /** Format: uuid */
             readonly id?: string;
             name?: string;
+        };
+        /** @description Unprocessable entity */
+        ConstraintViolation: {
+            /** @default 422 */
+            status: number;
+            violations?: {
+                /** @description The property path of the violation */
+                propertyPath: string;
+                /** @description The message associated with the violation */
+                message: string;
+                /** @description The code of the violation */
+                code?: string;
+                /** @description An extra hint to understand the violation */
+                hint?: string;
+                /** @description The serialized payload of the violation */
+                payload?: {
+                    [key: string]: unknown;
+                };
+            }[];
+            readonly detail?: string;
+            readonly type?: string;
+            readonly title?: string | null;
+            readonly instance?: string | null;
+        };
+        /** @description Unprocessable entity */
+        "ConstraintViolation.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @default 422 */
+            status: number;
+            violations?: {
+                /** @description The property path of the violation */
+                propertyPath: string;
+                /** @description The message associated with the violation */
+                message: string;
+                /** @description The code of the violation */
+                code?: string;
+                /** @description An extra hint to understand the violation */
+                hint?: string;
+                /** @description The serialized payload of the violation */
+                payload?: {
+                    [key: string]: unknown;
+                };
+            }[];
+            readonly detail?: string;
+            readonly description?: string;
+            readonly type?: string;
+            readonly title?: string | null;
+            readonly instance?: string | null;
         };
         /** @description A representation of common errors. */
         Error: {
@@ -727,6 +904,133 @@ export interface components {
             "@id": string;
             "@type": string;
         };
+        /**
+         * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
+         *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
+         */
+        "Playlist-playlist.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** Format: date-time */
+            readonly createdAt?: string;
+            /**
+             * Format: date-time
+             * @description Changed by any change to the playlist or its items, including a scan removing one of its tracks.
+             */
+            readonly updatedAt?: string;
+            /**
+             * @description Number of items (a track added twice counts twice)
+             * @default 0
+             */
+            readonly trackCount: number;
+            /**
+             * @description Total length in milliseconds of the items whose length is known
+             * @default 0
+             */
+            readonly durationMs: number;
+            covers?: string[];
+            name: string;
+        };
+        /**
+         * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
+         *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
+         */
+        "Playlist-playlist.write.jsonMergePatch": {
+            name?: string;
+        };
+        /**
+         * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
+         *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
+         */
+        "Playlist.PlaylistInput": {
+            name: string;
+        };
+        /**
+         * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
+         *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
+         */
+        "Playlist.PlaylistTracksInput": {
+            tracks?: string[];
+        };
+        /**
+         * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
+         *     else it doesn't exist (404, see App\Doctrine\OwnedByCurrentUserExtension). Deleted with its owner.
+         */
+        "Playlist.jsonld-playlist.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** Format: date-time */
+            readonly createdAt?: string;
+            /**
+             * Format: date-time
+             * @description Changed by any change to the playlist or its items, including a scan removing one of its tracks.
+             */
+            readonly updatedAt?: string;
+            /**
+             * @description Number of items (a track added twice counts twice)
+             * @default 0
+             */
+            readonly trackCount: number;
+            /**
+             * @description Total length in milliseconds of the items whose length is known
+             * @default 0
+             */
+            readonly durationMs: number;
+            covers?: string[];
+            name: string;
+        };
+        /**
+         * @description One appearance of a track in a playlist: a track added twice is two items, each with its own id. Deleted with its
+         *     playlist and with its track (e.g. when a scan removes the track).
+         *
+         *     The order is that of $sortKey, unique in the playlist and not exposed: keys leave gaps, so moving an item changes
+         *     its key alone (App\Playlists\PlaylistEditor), and removing one (by the API or a scan) changes no other. The exposed
+         *     position is the index in that order, from 0, computed when the item is read.
+         */
+        "PlaylistItem-playlist_item.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** Format: date-time */
+            readonly addedAt?: string;
+            /**
+             * @description Index of the item in the playlist, from 0
+             * @default 0
+             */
+            position: number;
+            track?: components["schemas"]["Track-playlist_item.read_track.read"];
+        };
+        /**
+         * @description One appearance of a track in a playlist: a track added twice is two items, each with its own id. Deleted with its
+         *     playlist and with its track (e.g. when a scan removes the track).
+         *
+         *     The order is that of $sortKey, unique in the playlist and not exposed: keys leave gaps, so moving an item changes
+         *     its key alone (App\Playlists\PlaylistEditor), and removing one (by the API or a scan) changes no other. The exposed
+         *     position is the index in that order, from 0, computed when the item is read.
+         */
+        "PlaylistItem.PlaylistItemMove.jsonMergePatch": {
+            /** @description Index in the current order, from 0; beyond the last item means the end. */
+            position?: number;
+        };
+        /**
+         * @description One appearance of a track in a playlist: a track added twice is two items, each with its own id. Deleted with its
+         *     playlist and with its track (e.g. when a scan removes the track).
+         *
+         *     The order is that of $sortKey, unique in the playlist and not exposed: keys leave gaps, so moving an item changes
+         *     its key alone (App\Playlists\PlaylistEditor), and removing one (by the API or a scan) changes no other. The exposed
+         *     position is the index in that order, from 0, computed when the item is read.
+         */
+        "PlaylistItem.jsonld-playlist_item.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** Format: date-time */
+            readonly addedAt?: string;
+            /**
+             * @description Index of the item in the playlist, from 0
+             * @default 0
+             */
+            position: number;
+            track?: components["schemas"]["Track.jsonld-playlist_item.read_track.read"];
+        };
         /** @description Searches the whole library at once. Every word of the query has to appear, in any order, ignoring case and accents. Artists match by name, albums by title or artist, tracks by title, artist or album. Each list is ranked by how well the item's own name matches, and holds at most `limit` items; the totals count every match. */
         "Search-search.read_artist.read_album.read_track.read": {
             /** @description The query, with its words separated by single spaces */
@@ -754,6 +1058,38 @@ export interface components {
             tracks?: components["schemas"]["Track.jsonld-search.read_artist.read_album.read_track.read"][];
             /** @description How many tracks match, including the ones beyond the limit */
             totalTracks?: number;
+        };
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
+        "Track-playlist_item.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album-playlist_item.read_track.read"];
+            artist?: components["schemas"]["Artist-playlist_item.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
         };
         /**
          * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
@@ -836,6 +1172,38 @@ export interface components {
             readonly genre?: string | null;
             /** @description Unsynchronised lyrics from the tags, lines separated by \n. */
             readonly lyrics?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite: boolean;
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
+        };
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
+        "Track.jsonld-playlist_item.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album.jsonld-playlist_item.read_track.read"];
+            artist?: components["schemas"]["Artist.jsonld-playlist_item.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
             /** @description Container format: "flac" or "mp3". */
             readonly format?: string;
             readonly mimeType?: string;
@@ -1509,6 +1877,399 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_playlists_get_collection: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playlist collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["Playlist.jsonld-playlist.read"][];
+                    };
+                    "application/json": components["schemas"]["Playlist-playlist.read"][];
+                };
+            };
+        };
+    };
+    api_playlists_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Playlist resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Playlist.PlaylistInput"];
+                "application/json": components["schemas"]["Playlist.PlaylistInput"];
+            };
+        };
+        responses: {
+            /** @description Playlist resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Playlist.jsonld-playlist.read"];
+                    "application/json": components["schemas"]["Playlist-playlist.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_playlists_id_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playlist resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Playlist.jsonld-playlist.read"];
+                    "application/json": components["schemas"]["Playlist-playlist.read"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_playlists_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playlist resource deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_playlists_id_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated Playlist resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["Playlist-playlist.write.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description Playlist resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Playlist.jsonld-playlist.read"];
+                    "application/json": components["schemas"]["Playlist-playlist.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_playlists_iditems_get_collection: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of the items, in the order of the playlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["PlaylistItem.jsonld-playlist_item.read_track.read"][];
+                    };
+                    "application/json": components["schemas"]["PlaylistItem-playlist_item.read_track.read"][];
+                };
+            };
+            /** @description The playlist does not exist, or is someone else's */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    playlist_add_tracks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The new Playlist resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Playlist.PlaylistTracksInput"];
+                "application/json": components["schemas"]["Playlist.PlaylistTracksInput"];
+            };
+        };
+        responses: {
+            /** @description The tracks were added: the playlist, with its new trackCount, durationMs, covers and updatedAt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Playlist.jsonld-playlist.read"];
+                    "application/json": components["schemas"]["Playlist-playlist.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The playlist does not exist, or is someone else's */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A track that does not exist, something that is not a track id or IRI, no track, or more than 10000 items in the playlist afterwards: nothing was added */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_playlist_items_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PlaylistItem identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PlaylistItem resource deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_playlist_items_id_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description PlaylistItem identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated PlaylistItem resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["PlaylistItem.PlaylistItemMove.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description PlaylistItem resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["PlaylistItem.jsonld-playlist_item.read_track.read"];
+                    "application/json": components["schemas"]["PlaylistItem-playlist_item.read_track.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
             };
         };
     };

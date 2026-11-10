@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { ActionsMenu } from '../components/ActionsMenu'
+import { AddToPlaylistDialog } from '../components/PlaylistDialogs'
 import { showToast } from '../components/toast'
 import { addToQueue, playNext } from './engine'
 import type { PlayerTrack } from './store'
 
-// "Play next" and "Add to queue" for tracks and albums, so the queue grows without being replaced.
+// "Play next" and "Add to queue" for tracks and albums, so the queue grows without being replaced; and "Add to
+// playlist", in a dialog.
 
 /** Queues `tracks` after the current one or at the end, and says so; `name` is what they are, e.g. the album title. */
 function queueTracks(tracks: PlayerTrack[], where: 'next' | 'end', name: string): void {
@@ -27,8 +30,10 @@ interface QueueMenuProps {
   className?: string
 }
 
-/** A "⋯" menu with Play next and Add to queue. */
+/** A "⋯" menu with Play next, Add to queue and Add to playlist. */
 export function QueueMenu({ name, tracks, className }: QueueMenuProps) {
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false)
+
   async function queue(where: 'next' | 'end') {
     try {
       queueTracks(await tracks(), where, name)
@@ -38,13 +43,17 @@ export function QueueMenu({ name, tracks, className }: QueueMenuProps) {
   }
 
   return (
-    <ActionsMenu
-      label={`More options for ${name}`}
-      actions={[
-        { label: 'Play next', onSelect: () => queue('next') },
-        { label: 'Add to queue', onSelect: () => queue('end') },
-      ]}
-      className={className}
-    />
+    <>
+      <ActionsMenu
+        label={`More options for ${name}`}
+        actions={[
+          { label: 'Play next', onSelect: () => queue('next') },
+          { label: 'Add to queue', onSelect: () => queue('end') },
+          { label: 'Add to playlist…', onSelect: () => setAddingToPlaylist(true) },
+        ]}
+        className={className}
+      />
+      {addingToPlaylist && <AddToPlaylistDialog name={name} tracks={tracks} onClose={() => setAddingToPlaylist(false)} />}
+    </>
   )
 }

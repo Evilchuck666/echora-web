@@ -26,6 +26,14 @@ interface MockAlbum {
   cover: boolean
 }
 
+interface MockPlaylist {
+  id: string
+  name: string
+  /** Increases with every change: the list of playlists is ordered by it, newest first. */
+  changed: number
+  items: { id: string; trackId: string }[]
+}
+
 interface MockTrack {
   id: string
   albumId: string
@@ -67,6 +75,11 @@ export class MockApi {
 
   /** The user's favourites of each kind, by id, newest first (as the API lists them). */
   readonly favourites: Record<'track' | 'album' | 'artist', string[]> = { track: [], album: [], artist: [] }
+  /** The user's playlists, as the API keeps them. */
+  readonly playlists: MockPlaylist[] = []
+  private changes = 0
+  private playlistCount = 0
+
   /** Bodies of POST /api/transcodes (the tracks to convert to Opus ahead of time), in order. */
   readonly transcodes: { device: string; tracks: string[] }[] = []
   /** The next favourite changes answer 500, as when the API is down. */
@@ -95,6 +108,18 @@ export class MockApi {
   /** The access tokens issued so far stop working, as after a change of signing keys. Refresh tokens still work. */
   rejectAccessTokens(): void {
     this.accessTokens.clear()
+  }
+
+  /** A playlist made beforehand, with these tracks (by title; the first track of that title). */
+  addPlaylist(name: string, trackTitles: string[] = []): MockPlaylist {
+    const playlist: MockPlaylist = {
+      id: `00000000-0000-4000-9000-${String(++this.playlistCount).padStart(12, '0')}`,
+      name,
+      changed: ++this.changes,
+      items: trackTitles.map((title) => ({ id: `item-${++this.changes}`, trackId: this.tracks.find((t) => t.title === title)!.id })),
+    }
+    this.playlists.push(playlist)
+    return playlist
   }
 
   artistNamed(name: string): MockArtist {
@@ -199,6 +224,30 @@ export class MockApi {
     }
   }
 
+  private playlistJson(playlist: MockPlaylist) {
+    const tracks = playlist.items.map((item) => this.tracks.find((t) => t.id === item.trackId)!)
+    const albums = [...new Set(tracks.map((t) => t.albumId))].map((albumId) => this.albums.find((a) => a.id === albumId)!)
+    return {
+      '@id': `/api/playlists/${playlist.id}`,
+      '@type': 'Playlist',
+      id: playlist.id,
+      name: playlist.name,
+      trackCount: tracks.length,
+      durationMs: tracks.length * TRACK_SECONDS * 1000,
+      covers: albums.filter((a) => a.cover).slice(0, 4).map((a) => this.signed(`/api/albums/${a.id}/cover`)),
+    }
+  }
+
+  private itemJson(item: { id: string; trackId: string }, position: number) {
+    return {
+      '@id': `/api/playlist_items/${item.id}`,
+      '@type': 'PlaylistItem',
+      id: item.id,
+      position,
+      track: this.trackJson(this.tracks.find((t) => t.id === item.trackId)!),
+    }
+  }
+
   private signed(path: string): string {
     return `${API}${path}?_expiration=${Math.floor(Date.now() / 1000) + 6 * 3600}&_hash=mock-signature`
   }
@@ -211,7 +260,7 @@ export class MockApi {
     const cors = {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Headers': 'authorization, content-type, range',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
       'Access-Control-Expose-Headers': 'content-range, content-length, accept-ranges',
     }
     if (request.method() === 'OPTIONS') {
@@ -282,6 +331,81 @@ export class MockApi {
       return reply(401, { code: 401, message: token ? 'Invalid JWT Token' : 'JWT Token not found' })
     }
     const page = Number(url.searchParams.get('page') ?? 1)
+
+    // As API Platform: a PATCH must be a JSON merge patch.
+    if (request.method() === 'PATCH' && (await request.headerValue('content-type')) !== 'application/merge-patch+json') {
+      return reply(415, { '@type': 'Error', title: 'An error occurred', detail: 'The content-type is not supported.', status: 415 })
+    }
+    // Playlists: the user's only; positions are indexes from 0; a track may appear several times.
+    const invalid = (detail: string) => reply(422, { '@type': 'ConstraintViolation', title: 'An error occurred', detail, status: 422 })
+    const validName = (name: unknown): name is string => typeof name === 'string' && name.length >= 1 && name.length <= 100 && name.trim() === name
+    if (path === '/api/playlists' && request.method() === 'POST') {
+      const { name } = request.postDataJSON() as { name?: unknown }
+      if (!validName(name)) {
+        return invalid('name: This value should not be blank.')
+      }
+      const playlist = { id: `00000000-0000-4000-9000-${String(++this.playlistCount).padStart(12, '0')}`, name, changed: ++this.changes, items: [] }
+      this.playlists.push(playlist)
+      return reply(201, this.playlistJson(playlist))
+    }
+    if (path === '/api/playlists') {
+      const sorted = [...this.playlists].sort((a, b) => b.changed - a.changed)
+      return reply(200, this.collection('/api/playlists', sorted.map((p) => this.playlistJson(p)), page))
+    }
+    if ((match = /^\/api\/playlists\/([^/]+)(\/items)?$/.exec(path))) {
+      const playlist = this.playlists.find((p) => p.id === match![1])
+      if (!playlist) {
+        return notFound()
+      }
+      const items = match[2] !== undefined
+      if (!items && request.method() === 'PATCH') {
+        const { name } = request.postDataJSON() as { name?: unknown }
+        if (!validName(name)) {
+          return invalid('name: This value is not valid.')
+        }
+        playlist.name = name
+        playlist.changed = ++this.changes
+        return reply(200, this.playlistJson(playlist))
+      }
+      if (!items && request.method() === 'DELETE') {
+        this.playlists.splice(this.playlists.indexOf(playlist), 1)
+        return route.fulfill({ status: 204, headers: cors })
+      }
+      if (items && request.method() === 'POST') {
+        const { tracks } = request.postDataJSON() as { tracks?: unknown }
+        const ids = Array.isArray(tracks) ? tracks.map((t) => String(t).split('/').pop()!) : []
+        if (ids.length === 0 || ids.some((trackId) => !this.tracks.some((t) => t.id === trackId))) {
+          return invalid('tracks: Unknown track.')
+        }
+        playlist.items.push(...ids.map((trackId) => ({ id: `item-${++this.changes}`, trackId })))
+        playlist.changed = ++this.changes
+        return reply(200, this.playlistJson(playlist))
+      }
+      if (items) {
+        return reply(200, this.collection(`/api/playlists/${playlist.id}/items`, playlist.items.map((item, i) => this.itemJson(item, i)), page))
+      }
+      return reply(200, this.playlistJson(playlist))
+    }
+    if ((match = /^\/api\/playlist_items\/([^/]+)$/.exec(path))) {
+      const playlist = this.playlists.find((p) => p.items.some((item) => item.id === match![1]))
+      if (!playlist) {
+        return notFound()
+      }
+      const from = playlist.items.findIndex((item) => item.id === match![1])
+      const [item] = playlist.items.splice(from, 1)
+      playlist.changed = ++this.changes
+      if (request.method() === 'DELETE') {
+        return route.fulfill({ status: 204, headers: cors })
+      }
+      const { position } = request.postDataJSON() as { position?: unknown }
+      if (typeof position !== 'number' || position < 0) {
+        playlist.items.splice(from, 0, item)
+        return invalid('position: This value should be either positive or zero.')
+      }
+      const to = Math.min(position, playlist.items.length)
+      playlist.items.splice(to, 0, item)
+      return reply(200, this.itemJson(item, to))
+    }
 
     // Opus ahead of time: the same checks as the API; nothing is converted (the mock's Opus is the same tone).
     if (request.method() === 'POST' && path === '/api/transcodes') {

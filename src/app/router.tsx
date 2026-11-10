@@ -7,6 +7,7 @@ import { ArtistsPage } from '../pages/ArtistsPage'
 import { FavouritesPage } from '../pages/FavouritesPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
+import { PlaylistPage } from '../pages/PlaylistPage'
 import { SearchPage } from '../pages/SearchPage'
 
 export const router = createBrowserRouter([
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
           { path: '/favourites', element: <FavouritesPage kind="track" /> },
           { path: '/favourites/albums', element: <FavouritesPage kind="album" /> },
           { path: '/favourites/artists', element: <FavouritesPage kind="artist" /> },
+          { path: '/playlists/:id', element: <PlaylistPage /> },
         ],
       },
     ],

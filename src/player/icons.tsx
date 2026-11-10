@@ -136,3 +136,17 @@ export const ArtistsIcon = ({ className }: IconProps) => (
     <path d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm0 10c4.4 0 8 2 8 4.5V22H4v-3.5C4 16 7.6 14 12 14Zm0 2c-3.5 0-6 1.5-6 2.5V20h12v-1.5c0-1-2.5-2.5-6-2.5Z" />
   </svg>
 )
+
+/** A plus: create something new. */
+export const PlusIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7z" />
+  </svg>
+)
+
+/** A list with a note: a playlist. */
+export const PlaylistIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M3 5h12v2H3zM3 10h12v2H3zM3 15h7v2H3zM17 8h4v2h-2v7.5a2.5 2.5 0 1 1-2-2.45V8Z" />
+  </svg>
+)
