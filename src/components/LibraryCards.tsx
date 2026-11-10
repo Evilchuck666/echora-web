@@ -2,6 +2,8 @@ import { Link } from 'react-router'
 import { albumIri, fetchAllTracks } from '../library/queries'
 import { QueueMenu } from '../player/QueueMenu'
 import { ArtistImage } from './ArtistImage'
+import { FavouriteButton } from './FavouriteButton'
+import { ON_HOVER } from './TrackItem'
 import { Cover } from './Cover'
 
 // Typed by the fields they show, so artists and albums from the lists and from the search both fit.
@@ -10,6 +12,7 @@ interface ArtistSummary {
   id?: string
   name?: string
   coverUrl?: string | null
+  favourite?: boolean
 }
 
 interface AlbumSummary {
@@ -20,17 +23,31 @@ interface AlbumSummary {
   artist?: { name?: string }
 }
 
-/** An artist's round thumbnail and name, linking to the artist. */
+/**
+ * An artist's round thumbnail and name, linking to the artist, and a heart over the thumbnail: shown on hover or
+ * focus (and on touch screens), and while the artist is a favourite.
+ */
 export function ArtistCard({ artist }: { artist: ArtistSummary }) {
   const name = artist.name ?? 'Unknown artist'
 
   return (
-    <Link to={`/artists/${artist.id}`} className="group block text-center">
-      <ArtistImage url={artist.coverUrl} name={name} className="w-full text-5xl group-hover:opacity-80" />
-      <p className="mt-2 truncate font-medium group-hover:text-violet-300" title={name}>
-        {name}
-      </p>
-    </Link>
+    <div className="group relative text-center">
+      <Link to={`/artists/${artist.id}`} className="block">
+        <ArtistImage url={artist.coverUrl} name={name} className="w-full text-5xl group-hover:opacity-80" />
+        <p className="mt-2 truncate font-medium group-hover:text-violet-300" title={name}>
+          {name}
+        </p>
+      </Link>
+      <FavouriteButton
+        kind="artist"
+        id={artist.id}
+        favourite={artist.favourite}
+        name={name}
+        // Over the round thumbnail, inside its top-right edge.
+        className={`absolute top-[6%] right-[6%] h-8 w-8 rounded-full bg-neutral-950/80 ${ON_HOVER} aria-pressed:opacity-100`}
+        iconClassName="h-4.5 w-4.5"
+      />
+    </div>
   )
 }
 

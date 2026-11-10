@@ -104,3 +104,18 @@ test('on a small screen the navigation slides in from the header', async ({ page
   await expect(page).toHaveURL('/favourites')
   await expect(drawer).toHaveCount(0)
 })
+
+test('an artist becomes a favourite from its card, and its card says so everywhere', async ({ page, api }) => {
+  const heartOf = (scope: ReturnType<Page['getByRole']>) => scope.getByRole('button', { name: 'Favourite Accept' })
+
+  await heartOf(page.getByRole('main')).click()
+  await expect(heartOf(page.getByRole('main'))).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(() => api.favourites.artist).toEqual([api.artistNamed('Accept').id])
+
+  await page.getByRole('searchbox', { name: 'Search the library' }).fill('accept')
+  await expect(heartOf(page.getByRole('region', { name: 'Artists' }))).toHaveAttribute('aria-pressed', 'true')
+
+  await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await page.getByRole('navigation', { name: 'Favourites' }).getByRole('link', { name: 'Artists' }).click()
+  await expect(heartOf(page.getByRole('main'))).toHaveAttribute('aria-pressed', 'true')
+})
