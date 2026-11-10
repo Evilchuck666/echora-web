@@ -12,9 +12,13 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { Cover } from '../components/Cover'
+import { PlaylistNameDialog } from '../components/PlaylistDialogs'
+import { showToast } from '../components/toast'
 import { formatDuration, plural } from '../library/format'
+import { createPlaylistWithTracks } from '../library/playlists'
 import { jumpTo, moveInQueue, removeFromQueue } from './engine'
 import { CloseIcon, DragHandleIcon } from './icons'
 import { PlayerPanel } from './PlayerPanel'
@@ -66,7 +70,15 @@ export function QueuePanel({ onClose, docked }: { onClose: () => void; docked?: 
   }
 
   return (
-    <PlayerPanel id={QUEUE_PANEL_ID} label="Queue" title="Queue" subtitle={summary(upcoming)} onClose={onClose} docked={docked}>
+    <PlayerPanel
+      id={QUEUE_PANEL_ID}
+      label="Queue"
+      title="Queue"
+      subtitle={summary(upcoming)}
+      onClose={onClose}
+      actions={<SaveAsPlaylist />}
+      docked={docked}
+    >
       <div className="flex-1 overflow-y-auto px-2 py-3">
         {current && (
           <section aria-label="Now playing" className="mb-4">
@@ -105,6 +117,46 @@ export function QueuePanel({ onClose, docked }: { onClose: () => void; docked?: 
         </section>
       </div>
     </PlayerPanel>
+  )
+}
+
+/** "Queue, Nov 10, 2026": the name offered for a playlist made of the queue. */
+function suggestedName(): string {
+  return `Queue, ${new Date().toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}`
+}
+
+/**
+ * Saves what the panel shows, the current track and the ones to come, in the order they play, as a new playlist.
+ * The tracks already played aren't in it.
+ */
+function SaveAsPlaylist() {
+  const [naming, setNaming] = useState(false)
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setNaming(true)}
+        className="shrink-0 rounded-full border border-neutral-700 px-3 py-1 text-sm text-neutral-300 hover:border-neutral-500 hover:text-white"
+      >
+        Save as playlist
+      </button>
+      {naming && (
+        <PlaylistNameDialog
+          title="Save the queue as a playlist"
+          initial={suggestedName()}
+          submitLabel="Save"
+          onClose={() => setNaming(false)}
+          onSubmit={async (name) => {
+            const { queue, index } = usePlayer.getState()
+            const ids = queue.slice(Math.max(index, 0)).flatMap((entry) => (entry.track.id ? [entry.track.id] : []))
+            const playlist = await createPlaylistWithTracks(name, ids)
+            setNaming(false)
+            showToast(`${plural(ids.length, 'track')} saved as “${playlist.name}”`)
+          }}
+        />
+      )}
+    </>
   )
 }
 

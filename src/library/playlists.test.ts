@@ -90,3 +90,30 @@ describe('moving playlists', () => {
     expect(queryClient.getQueryState(['playlists'])?.isInvalidated).toBe(true)
   })
 })
+
+describe('a playlist made of many tracks', () => {
+  it('is made first, then filled in batches, one after the other, in order', async () => {
+    const { writeTokens } = await import('../auth/tokens')
+    const { calls, json, jwt, routes } = await import('../test/http')
+    const { ADD_BATCH, createPlaylistWithTracks } = await import('./playlists')
+    writeTokens({ token: jwt(3600), refreshToken: 'r', refreshTokenExpiresAt: Math.floor(Date.now() / 1000) + 9999 })
+    let added = 0
+    routes({
+      'POST /api/playlists': () => json({ id: 'new', name: 'From the queue', trackCount: 0, durationMs: 0 }, 201),
+      'POST /api/playlists/new/items': async (request) => {
+        added += ((await request.json()) as { tracks: string[] }).tracks.length
+        return json({ id: 'new', name: 'From the queue', trackCount: added, durationMs: 0 })
+      },
+    })
+    const ids = Array.from({ length: 1200 }, (_, i) => `t${i}`)
+
+    const playlist = await createPlaylistWithTracks('From the queue', ids)
+
+    const posted = (await calls()).filter((call) => call.method === 'POST')
+    expect(posted.map((call) => new URL(call.url).pathname)).toEqual(['/api/playlists', ...Array(3).fill('/api/playlists/new/items')])
+    const batches = posted.slice(1).map((call) => (JSON.parse(call.body) as { tracks: string[] }).tracks)
+    expect(batches.map((batch) => batch.length)).toEqual([ADD_BATCH, ADD_BATCH, 200])
+    expect(batches.flat()).toEqual(ids)
+    expect(playlist.trackCount).toBe(1200)
+  })
+})

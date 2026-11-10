@@ -8,6 +8,8 @@ interface PlayerPanelProps {
   title: ReactNode
   subtitle?: ReactNode
   onClose: () => void
+  /** Buttons of the panel, in its header before the ×. */
+  actions?: ReactNode
   /** A section of the column at the right of the page, instead of a card floating over it. */
   docked?: boolean
   /** Floating on wide screens: sits to the left of another panel instead of at the right edge. */
@@ -25,7 +27,7 @@ const DOCKED = 'min-h-0 flex-1 border-b border-neutral-800 last:border-b-0'
  * page on large screens; elsewhere, above the bar, a card on the right (two side by side when there is room), or the
  * whole screen between the header and the bar on narrow ones. See usePanels.
  */
-export function PlayerPanel({ id, label, title, subtitle, onClose, docked = false, beside = false, children }: PlayerPanelProps) {
+export function PlayerPanel({ id, label, title, subtitle, onClose, actions, docked = false, beside = false, children }: PlayerPanelProps) {
   return (
     <aside
       id={id}
@@ -37,6 +39,7 @@ export function PlayerPanel({ id, label, title, subtitle, onClose, docked = fals
           <h2 className="truncate font-semibold">{title}</h2>
           {subtitle && <p className="truncate text-sm text-neutral-400">{subtitle}</p>}
         </div>
+        {actions}
         <button
           type="button"
           onClick={onClose}

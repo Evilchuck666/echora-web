@@ -90,6 +90,21 @@ export async function createPlaylist(name: string): Promise<Playlist> {
   return playlist
 }
 
+/** Tracks per request when a whole list of them makes a new playlist (a queue may hold a whole library). */
+export const ADD_BATCH = 500
+
+/**
+ * A new playlist with these tracks, in this order (e.g. the queue): made first, then the tracks added at its end,
+ * ADD_BATCH at a time, one request after the other. Answers the playlist as it is at the end.
+ */
+export async function createPlaylistWithTracks(name: string, trackIds: string[]): Promise<Playlist> {
+  let playlist = await createPlaylist(name)
+  for (let start = 0; start < trackIds.length; start += ADD_BATCH) {
+    playlist = await addToPlaylist(playlist.id!, trackIds.slice(start, start + ADD_BATCH))
+  }
+  return playlist
+}
+
 export async function renamePlaylist(id: string, name: string): Promise<void> {
   const playlist = await unwrap(api.PATCH('/api/playlists/{id}', { params: { path: { id } }, body: { name: name.trim() }, ...MERGE_PATCH }))
   refresh(id, playlist)

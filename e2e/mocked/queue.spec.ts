@@ -208,3 +208,21 @@ test('with shuffle on, the space bar plays the whole library in any order', asyn
   const current = await nowPlaying(page).textContent()
   await expect.poll(async () => [current!, ...(await upNext(page))].sort()).toEqual([...LIBRARY].sort())
 })
+
+test('the queue is saved as a playlist: the current track and the ones to come, in order', async ({ page, api }) => {
+  await playAlbum(page, 'Killer')
+  await player(page).getByRole('button', { name: 'Next' }).click()
+  await expect(nowPlaying(page)).toHaveText('Be My Lover')
+  await openQueue(page)
+
+  await queuePanel(page).getByRole('button', { name: 'Save as playlist' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Save the queue as a playlist' })
+  await expect(dialog.getByLabel('Name')).toHaveValue(/^Queue, /)
+  await dialog.getByLabel('Name').fill('From the queue')
+  await dialog.getByRole('button', { name: 'Save' }).click()
+
+  await expect(page.getByText('2 tracks saved as “From the queue”')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Playlists' }).getByRole('link', { name: 'From the queue' })).toBeVisible()
+  const titles = api.playlists[0].items.map((item) => api.tracks.find((t) => t.id === item.trackId)!.title)
+  expect(titles).toEqual(['Be My Lover', 'Halo of Flies'])
+})
