@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { Cover } from '../components/Cover'
 import { FavouriteButton } from '../components/FavouriteButton'
@@ -113,7 +113,8 @@ export function PlayerBar() {
           </div>
 
           <div className="flex shrink-0 flex-col items-center gap-1 md:flex-1">
-            <div className="flex items-center gap-2 sm:gap-4">
+            {/* A little higher than centred (wide screens, where the slider is below): away from the slider's thumb. */}
+            <div className="flex items-center gap-2 sm:-translate-y-1 sm:gap-4">
               <ShuffleButton />
               <button
                 type="button"
@@ -130,14 +131,14 @@ export function PlayerBar() {
                 disabled={startingLibrary}
                 aria-label={playing ? 'Pause' : 'Play'}
                 title={track ? undefined : 'Play the whole library'}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-950 hover:scale-105"
+                className="flex h-9.5 w-9.5 items-center justify-center rounded-full bg-neutral-100 text-neutral-950 hover:scale-105"
               >
                 {startingLibrary || (buffering && playing) ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-400 border-t-neutral-950" />
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-neutral-400 border-t-neutral-950" />
                 ) : playing ? (
-                  <PauseIcon />
+                  <PauseIcon className="h-4.5 w-4.5" />
                 ) : (
-                  <PlayIcon className="ml-0.5 h-5 w-5" />
+                  <PlayIcon className="ml-0.5 h-4.5 w-4.5" />
                 )}
               </button>
               <button
@@ -208,6 +209,8 @@ function Progress({ disabled }: { disabled: boolean }) {
   const duration = usePlayer((state) => state.duration)
   const [dragging, setDragging] = useState<number | null>(null)
   const shown = dragging ?? currentTime
+  // How much of the track the slider fills (its own colour up to the thumb: a styled slider loses the browser's).
+  const fill = duration > 0 ? Math.min(shown / duration, 1) * 100 : 0
 
   function commit() {
     if (dragging !== null) {
@@ -232,7 +235,8 @@ function Progress({ disabled }: { disabled: boolean }) {
         disabled={disabled}
         aria-label="Position in the track"
         aria-valuetext={`${formatDuration(shown * 1000)} of ${formatDuration(duration * 1000)}`}
-        className="h-1 flex-1 cursor-pointer accent-violet-400 disabled:cursor-default disabled:opacity-40"
+        style={{ '--fill': `${fill}%` } as CSSProperties}
+        className="pill-slider flex-1"
       />
       <span className="w-10">{formatDuration(duration * 1000)}</span>
     </div>
@@ -313,7 +317,8 @@ function Volume() {
         value={muted ? 0 : volume}
         onChange={(event) => setVolume(Number(event.target.value))}
         aria-label="Volume"
-        className="h-1 w-28 cursor-pointer accent-violet-400"
+        style={{ '--fill': `${(muted ? 0 : volume) * 100}%` } as CSSProperties}
+        className="pill-slider w-28"
       />
     </div>
   )
