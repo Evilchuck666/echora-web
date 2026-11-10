@@ -9,6 +9,10 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --project=mocked",
+    "test:e2e:live": "playwright test --project=live",
     "preview": "vite preview",
     "api:types": "openapi-typescript https://localhost/api/docs.jsonopenapi -o src/api/schema.d.ts"
   },
@@ -21,15 +25,18 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "happy-dom": "21.0.4",
     "openapi-typescript": "^7.13.0",
     "oxlint": "^1.90.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~6.0.3",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "5.1.0"
   }
 }

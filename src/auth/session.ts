@@ -114,7 +114,7 @@ async function refreshUnlessDone(staleToken: string): Promise<string | null> {
 
 function withSessionLock<T>(callback: () => Promise<T>): Promise<T> {
   // Web Locks need a secure context (https, or http://localhost). Without them, tabs can't coordinate: refresh anyway.
-  if (!('locks' in navigator)) {
+  if (!navigator.locks) {
     return callback()
   }
   return navigator.locks.request(SESSION_LOCK, callback)

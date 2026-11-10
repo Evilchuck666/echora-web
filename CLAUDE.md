@@ -14,11 +14,19 @@ bun run dev          # Vite dev server at http://localhost:5173
 bun run build        # type check (tsc -b) and production build into dist/
 bun run typecheck    # type check only
 bun run lint         # oxlint
+bun run test         # unit tests (Vitest); `bun test` would run Bun's own runner instead: always `bun run test`
+bun run test:e2e     # end-to-end tests (Playwright) against the mock API
+bun run test:e2e:live  # a few end-to-end tests against the real API (needs e2e/.env)
 bun run preview      # serve the production build
 bun run api:types    # regenerate src/api/schema.d.ts from the running API
 ```
 
-There are no tests yet.
+## Tests
+
+- **Unit** (Vitest + happy-dom, `src/**/*.test.ts`, setup in `src/test/`): logic without UI, above all the session (single-flight and cross-tab refresh, sign-out), the API client's middleware, and the player engine. `fetch` is a mock set before any import, because openapi-fetch keeps the fetch it finds when a client is created: configure it per test with the helpers in `src/test/http.ts` (`routes()`, `json()`, `calls()`, `jwt()`). happy-dom has no Web Locks (`navigator.locks` is `null`): `src/test/locks.ts` installs a shared stand-in.
+- **End-to-end** (Playwright, `e2e/`): the app in Chromium. `e2e/mocked/` runs against `e2e/support/mock-api.ts`, a stateful mock of the Echora API (login, single-use refresh tokens, library, search, a real WAV stream, SVG covers, injectable failures) installed with `context.route()` through the fixtures in `e2e/support/fixtures.ts`; it needs no server and runs in CI (`.github/workflows/ci.yaml`). `e2e/live/` runs against the real API and library, skipped unless `e2e/.env` sets `ECHORA_E2E_USERNAME` and `ECHORA_E2E_PASSWORD` (see `e2e/.env.example`); it must not depend on particular artists. Playwright starts its own Vite on port 5179.
+- Locate elements by role and accessible name (`getByRole('region', { name: 'Player' })`), as users and screen readers find them: keep `aria-label`s meaningful. When a feature changes the API's behaviour the client relies on, update the mock API too.
+- After a change, run `bun run lint`, `bun run build`, `bun run test` and `bun run test:e2e`.
 
 ## Layout
 

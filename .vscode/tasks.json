@@ -43,6 +43,20 @@
       "problemMatcher": []
     },
     {
+      "label": "Unit tests",
+      "type": "shell",
+      "command": "bun run test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "End-to-end tests",
+      "type": "shell",
+      "command": "bun run test:e2e",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
       "label": "Generate API types",
       "type": "shell",
       "command": "bun run api:types",

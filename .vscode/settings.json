@@ -24,6 +24,11 @@
   "files.watcherExclude": {
     "**/dist/**": true
   },
+  // Playwright output.
+  "files.exclude": {
+    "playwright-report": true,
+    "test-results": true
+  },
   "search.exclude": {
     "**/dist": true,
     "bun.lock": true
