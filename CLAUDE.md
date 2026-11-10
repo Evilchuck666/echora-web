@@ -64,7 +64,7 @@ Not deployed on its own: `../Echora`'s production image builds this repository (
 
 ## The Echora API
 
-The local API runs from `../Echora` with `docker compose up --wait` at **https://localhost/api** (Swagger UI there; OpenAPI at `/api/docs.jsonopenapi`). Its README and its `bruno/` collection document every endpoint. Rules the client must follow:
+The local API runs from `../Echora` with `docker compose up --wait` at **https://localhost/api** (Swagger UI there; OpenAPI at `/api/docs.jsonopenapi`). Its README and its `bruno/` collection document every endpoint, and `docs/decisions/` why it is built that way: when a change asked from this repository shapes the API (a new endpoint, a rule, how something is served), add a record there too, saying it came from echora-web. Rules the client must follow:
 
 - **Collections need JSON-LD** (`Accept: application/ld+json`, the default): items are in `member`, the total in `totalItems`, and pagination links in `view` (`first`, `next`, `last`; 30 items per page, `page` query parameter). With `Accept: application/json` a collection is a bare array with no total or links.
 - **Filters** take IRIs for relations: `/api/albums?artist=/api/artists/{id}`, `/api/tracks?album=/api/albums/{id}`. Text filters (`name`, `title`) are partial and case-insensitive. `/api/tracks?albumArtist=/api/artists/{id}` lists every track of an artist's own albums (`artist` filters by track artist). Default order: artists by name, albums by year and title, tracks in the order of the library (album artist by name, album by year and title, then disc and track number).
