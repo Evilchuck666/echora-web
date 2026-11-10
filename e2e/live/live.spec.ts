@@ -2,8 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 
 // Against the real API (../Echora, https://localhost) and whatever library it holds, so nothing here depends on
 // particular artists. Signs in with ECHORA_E2E_USERNAME and ECHORA_E2E_PASSWORD (e2e/.env, see e2e/.env.example).
+// With ECHORA_E2E_BASE_URL, against a deployed Echora instead, whose API is on the same origin.
 
-const API = 'https://localhost'
+const API = process.env.ECHORA_E2E_BASE_URL ?? 'https://localhost'
 const username = process.env.ECHORA_E2E_USERNAME ?? ''
 const password = process.env.ECHORA_E2E_PASSWORD ?? ''
 
@@ -36,7 +37,8 @@ test('browse to an album and play it', async ({ page }) => {
 
 test('the search finds an artist by its name', async ({ page }) => {
   await signIn(page)
-  const name = (await page.getByRole('main').getByRole('list').getByRole('link').first().innerText()).trim()
+  // The name under the photo (the card also holds the artist's initial when there is no photo).
+  const name = (await page.getByRole('main').getByRole('list').getByRole('link').first().locator('p').innerText()).trim()
 
   await page.getByRole('searchbox', { name: 'Search the library' }).fill(name)
 

@@ -8,6 +8,9 @@ if (existsSync('e2e/.env')) {
 
 const PORT = 5179
 
+// A deployed Echora (e.g. https://music.example.com) to run the live tests against, instead of Vite and the local API.
+const deployed = process.env.ECHORA_E2E_BASE_URL
+
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
@@ -25,11 +28,13 @@ export default defineConfig({
     // The app against a mock API (e2e/support/mock-api.ts): no server needed, runs in CI.
     { name: 'mocked', testDir: 'e2e/mocked' },
     // The app against the real API (../Echora on https://localhost) and its library: run by hand, see e2e/live.
-    { name: 'live', testDir: 'e2e/live', use: { ignoreHTTPSErrors: true } },
+    { name: 'live', testDir: 'e2e/live', use: { ignoreHTTPSErrors: true, ...(deployed ? { baseURL: deployed } : {}) } },
   ],
-  webServer: {
-    command: `bunx vite --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: deployed
+    ? undefined
+    : {
+        command: `bunx vite --port ${PORT} --strictPort`,
+        url: `http://localhost:${PORT}`,
+        reuseExistingServer: !process.env.CI,
+      },
 })

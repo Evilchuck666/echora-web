@@ -45,7 +45,11 @@ Conventions:
 - The `api` client is typed for `application/ld+json` (`createClient<paths, 'application/ld+json'>`), so responses have the JSON-LD shapes (`member`, `totalItems`, `view`). Wrap calls in `unwrap()` inside `queryFn`.
 - Collections are infinite queries: `initialPageParam: 1` and `getNextPageParam: (page) => nextPage(page.view)`, with an `InfiniteScrollTrigger` after the list. Relation filters take IRIs (`/api/artists/{id}`).
 - Show the page-level `QueryError` on `isLoadingError`, not `isError`: once data is on screen, a failed next page or refetch must not replace it (the trigger offers a retry instead). Server and network errors are retried twice automatically; 4xx aren't.
-- `.env` sets `VITE_API_URL` (the API origin, without `/api`, since the generated paths include it). Local overrides go in `.env.local` (git-ignored).
+- `.env` sets `VITE_API_URL` (the API origin, without `/api`, since the generated paths include it). Local overrides go in `.env.local` (git-ignored). `.env.production` sets it empty: in production the app is served by the API's own Caddy on the same origin and calls `/api/...` by path. Never assume the API is on another origin (no absolute API URLs built in code; media URLs come absolute from the API).
+
+## Production
+
+Not deployed on its own: `../Echora`'s production image builds this repository (its `compose.prod.yaml` passes it as the `web` build context, `WEB_DIR`, and its Dockerfile runs `bun install --frozen-lockfile` and `bun run build`) and its Caddy serves `dist/` at the root of the site, falling back to `index.html` for the app's routes; `/api`, `/bundles` and `/.well-known` go to the API. So `bun run build` must keep working from a clean checkout, `dist/` must stay self-contained, and new top-level routes must not start with those prefixes. `.dockerignore` keeps `node_modules`, reports and `e2e/.env` out of that build context. `bun run preview` proxies `/api` to the local API. `ECHORA_E2E_BASE_URL` runs the live tests against a deployment.
 
 ## Decided stack
 

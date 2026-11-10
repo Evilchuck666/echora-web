@@ -88,6 +88,14 @@ docker compose cp php:/data/caddy/pki/authorities/local/root.crt ~/echora-local-
 
 ---
 
+## 🌍 Production
+
+In production, Echora Web isn't deployed on its own: the [Echora](https://github.com/Evilchuck666/Echora) server builds it into its image and serves it at the root of its domain, next to the API (`https://your-domain/` and `https://your-domain/api`). Same origin, so the browser needs no CORS. Clone this repository next to Echora's and follow [its production guide](https://github.com/Evilchuck666/Echora#-production).
+
+The production build (`bun run build`) calls the API by path (`/api/...`, see `.env.production`). `bun run preview` serves that build and passes `/api` to the local API, to try it before deploying. After deploying, `ECHORA_E2E_BASE_URL=https://your-domain bun run test:e2e:live` runs the live tests against it (see [Tests](#-tests)).
+
+---
+
 ## 🔌 API types
 
 The client doesn't hand-write the shapes of the API's responses: it generates them from the OpenAPI specification that the API publishes at `https://localhost/api/docs.jsonopenapi`, with `openapi-typescript`. When the API changes, regenerate the types and let TypeScript point out what needs updating:
@@ -113,7 +121,7 @@ The API documents every endpoint at **https://localhost/api**, and its [README](
 | `bun run test` | Runs the unit tests ([Vitest](https://vitest.dev/)) |
 | `bun run test:e2e` | Runs the end-to-end tests ([Playwright](https://playwright.dev/)) in Chromium, against a mock API |
 | `bun run test:e2e:live` | Runs a few end-to-end tests against your running Echora API (see below) |
-| `bun run preview` | Serves the production build locally |
+| `bun run preview` | Serves the production build locally, passing `/api` to the local API |
 | `bun run api:types` | Regenerates the API types (see [API types](#-api-types)) |
 
 The repository includes a VS Code setup in `.vscode/` (it also works in Code - OSS with extensions from Open VSX):
@@ -137,7 +145,7 @@ bunx playwright install chromium
 bun run test:e2e
 ```
 
-A few more run against your own Echora API and library, to check that both still work together. Start the API, create an account for them (`docker compose exec php bin/console app:user:create e2e` in the Echora repository), copy `e2e/.env.example` to `e2e/.env` (git-ignored) with its credentials, and run `bun run test:e2e:live`.
+A few more run against your own Echora API and library, to check that both still work together. Start the API, create an account for them (`docker compose exec php bin/console app:user:create e2e` in the Echora repository), copy `e2e/.env.example` to `e2e/.env` (git-ignored) with its credentials, and run `bun run test:e2e:live`. Set `ECHORA_E2E_BASE_URL` there to run them against a deployed Echora instead.
 
 After a failure, `bunx playwright show-report` opens a report with a trace of each failed test.
 
