@@ -23,6 +23,15 @@ async function playAlbum(page: Page, title: string) {
   await expect(nowPlaying(page)).toBeVisible()
 }
 
+/** Opens the queue, unless it is open already (as in the column of large screens). */
+async function openQueue(page: Page) {
+  const button = player(page).getByRole('button', { name: 'Queue' })
+  if ((await button.getAttribute('aria-expanded')) !== 'true') {
+    await button.click()
+  }
+  await expect(queuePanel(page)).toBeVisible()
+}
+
 async function choose(page: Page, menu: string, action: 'Play next' | 'Add to queue') {
   await page.getByRole('button', { name: `More options for ${menu}` }).first().click()
   await page.getByRole('menu', { name: `More options for ${menu}` }).getByRole('menuitem', { name: action }).click()
@@ -33,7 +42,7 @@ test.beforeEach(async ({ signIn }) => signIn())
 test('the queue panel shows what plays and what comes next; a track plays when clicked, and can be removed', async ({ page }) => {
   await playAlbum(page, 'Balls to the Wall')
 
-  await player(page).getByRole('button', { name: 'Queue' }).click()
+  await openQueue(page)
 
   await expect(queuePanel(page).getByRole('region', { name: 'Now playing' })).toContainText('Balls to the Wall')
   expect(await upNext(page)).toEqual(['London Leatherboys', 'Fight It Back', 'Head Over Heels', 'Losing More Than You\'ve Ever Had', 'Love Child'])
@@ -50,13 +59,13 @@ test('the queue panel shows what plays and what comes next; a track plays when c
   await player(page).getByRole('button', { name: 'Previous' }).click()
   await expect(nowPlaying(page)).toHaveText('Fight It Back')
 
-  await page.keyboard.press('Escape')
+  await queuePanel(page).getByRole('button', { name: 'Close the queue' }).click()
   await expect(queuePanel(page)).toHaveCount(0)
 })
 
 test('tracks move by dragging their handle, or from the keyboard', async ({ page }) => {
   await playAlbum(page, 'Balls to the Wall')
-  await player(page).getByRole('button', { name: 'Queue' }).click()
+  await openQueue(page)
 
   const handle = await queuePanel(page).getByRole('button', { name: 'Move Love Child', exact: true }).boundingBox()
   const target = await queuePanel(page).getByRole('button', { name: 'Move London Leatherboys', exact: true }).boundingBox()
@@ -99,7 +108,7 @@ test('play next and add to queue, from tracks, albums and search results', async
   await page.getByRole('searchbox', { name: 'Search the library' }).fill('breaker')
   await choose(page, 'Breaker', 'Play next')
 
-  await player(page).getByRole('button', { name: 'Queue' }).click()
+  await openQueue(page)
   await expect(nowPlaying(page)).toHaveText('Under My Wheels')
   expect(await upNext(page)).toEqual([
     'Starlight', 'Breaker', 'Run If You Can',
@@ -161,7 +170,7 @@ test('play all plays every album of the artist, in order', async ({ page }) => {
 
   await expect(nowPlaying(page)).toHaveText('Starlight')
   await expect(page.getByRole('main').getByRole('button', { name: 'Pause' })).toBeVisible()
-  await player(page).getByRole('button', { name: 'Queue' }).click()
+  await openQueue(page)
   expect(await upNext(page)).toEqual([
     'Breaker', 'Run If You Can',
     'Balls to the Wall', 'London Leatherboys', 'Fight It Back', 'Head Over Heels', 'Losing More Than You\'ve Ever Had', 'Love Child',

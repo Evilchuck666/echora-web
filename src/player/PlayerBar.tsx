@@ -19,6 +19,7 @@ import {
 import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
 import { QUEUE_PANEL_ID, QueuePanel } from './QueuePanel'
 import { selectCurrentTrack, selectHasNext, usePlayer, type RepeatMode } from './store'
+import { usePanels } from './usePanels'
 
 /** Arrow keys move this many seconds in the track. */
 const ARROW_SEEK_SECONDS = 5
@@ -26,7 +27,8 @@ const ARROW_SEEK_SECONDS = 5
 /**
  * The player, fixed at the bottom of every signed-in page once something has been played. Space plays and pauses,
  * the left and right arrows move in the track, unless the focus is on something that uses those keys itself. The
- * lyrics and queue panels open above it, one at a time, and stay open from one track to the next.
+ * lyrics and queue panels open from it (in a column at the right of the page on large screens, see usePanels) and
+ * follow the player from one track to the next.
  */
 export function PlayerBar() {
   const track = usePlayer(selectCurrentTrack)
@@ -34,9 +36,12 @@ export function PlayerBar() {
   const buffering = usePlayer((state) => state.buffering)
   const error = usePlayer((state) => state.error)
   const hasNext = usePlayer(selectHasNext)
-  const [panel, setPanel] = useState<'lyrics' | 'queue' | null>(null)
-  const closePanel = useCallback(() => setPanel(null), [])
-  const toggle = (which: 'lyrics' | 'queue') => setPanel((open) => (open === which ? null : which))
+  const panels = usePanels()
+  const lyricsOpen = panels.isOpen('lyrics')
+  const queueOpen = panels.isOpen('queue')
+  const { close } = panels
+  const closeLyrics = useCallback(() => close('lyrics'), [close])
+  const closeQueue = useCallback(() => close('queue'), [close])
 
   usePlayerShortcuts(track !== undefined)
 
@@ -110,11 +115,11 @@ export function PlayerBar() {
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3 md:w-1/4">
             <button
               type="button"
-              onClick={() => toggle('lyrics')}
-              disabled={panel !== 'lyrics' && track.hasLyrics === false}
+              onClick={() => panels.toggle('lyrics')}
+              disabled={!lyricsOpen && track.hasLyrics === false}
               aria-label="Lyrics"
-              aria-expanded={panel === 'lyrics'}
-              aria-controls={panel === 'lyrics' ? LYRICS_PANEL_ID : undefined}
+              aria-expanded={lyricsOpen}
+              aria-controls={lyricsOpen ? LYRICS_PANEL_ID : undefined}
               title={track.hasLyrics === false ? 'This track has no lyrics' : undefined}
               className="p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 aria-expanded:text-violet-400"
             >
@@ -122,10 +127,10 @@ export function PlayerBar() {
             </button>
             <button
               type="button"
-              onClick={() => toggle('queue')}
+              onClick={() => panels.toggle('queue')}
               aria-label="Queue"
-              aria-expanded={panel === 'queue'}
-              aria-controls={panel === 'queue' ? QUEUE_PANEL_ID : undefined}
+              aria-expanded={queueOpen}
+              aria-controls={queueOpen ? QUEUE_PANEL_ID : undefined}
               className="p-1 text-neutral-300 hover:text-white aria-expanded:text-violet-400"
             >
               <QueueIcon />
@@ -134,8 +139,21 @@ export function PlayerBar() {
           </div>
         </div>
       </section>
-      {panel === 'lyrics' && <LyricsPanel track={track} onClose={closePanel} />}
-      {panel === 'queue' && <QueuePanel onClose={closePanel} />}
+      {panels.docked ? (
+        (lyricsOpen || queueOpen) && (
+          // Between the header (h-14) and the bar (h-20); AppLayout leaves the page room for it (useDockedColumn).
+          <div className="fixed top-14 right-0 bottom-20 z-10 flex w-96 flex-col border-l border-neutral-800 bg-neutral-950">
+            {/* The queue on top: it is open from the start, and stays put when the lyrics come and go below it. */}
+            {queueOpen && <QueuePanel onClose={closeQueue} docked />}
+            {lyricsOpen && <LyricsPanel track={track} onClose={closeLyrics} docked />}
+          </div>
+        )
+      ) : (
+        <>
+          {lyricsOpen && <LyricsPanel track={track} onClose={closeLyrics} beside={queueOpen} />}
+          {queueOpen && <QueuePanel onClose={closeQueue} />}
+        </>
+      )}
     </>
   )
 }

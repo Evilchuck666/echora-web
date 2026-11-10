@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { CloseIcon } from './icons'
 
 interface PlayerPanelProps {
@@ -8,31 +8,29 @@ interface PlayerPanelProps {
   title: ReactNode
   subtitle?: ReactNode
   onClose: () => void
+  /** A section of the column at the right of the page, instead of a card floating over it. */
+  docked?: boolean
+  /** Floating on wide screens: sits to the left of another panel instead of at the right edge. */
+  beside?: boolean
   children: ReactNode
 }
 
-/**
- * The frame of the panels opened from the player bar (lyrics, queue), above it: a card on the right on wide screens,
- * the whole screen between the header and the bar on narrow ones. Escape closes it, unless it is leaving a field
- * (the search box) or something else handled it (a menu).
- */
-export function PlayerPanel({ id, label, title, subtitle, onClose, children }: PlayerPanelProps) {
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null
-      if (event.key === 'Escape' && !event.defaultPrevented && !target?.closest('input:not([type="range"]), textarea, select')) {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+const FLOATING =
+  'fixed inset-x-2 top-16 bottom-22 z-20 rounded-lg border border-neutral-800 bg-neutral-900/95 shadow-2xl backdrop-blur sm:inset-x-auto sm:top-auto sm:right-4 sm:max-h-[min(40rem,calc(100svh-8rem))] sm:w-96'
+/** In the column: sections share its height, with a line between them. */
+const DOCKED = 'min-h-0 flex-1 border-b border-neutral-800 last:border-b-0'
 
+/**
+ * The frame of the panels opened from the player bar (lyrics, queue): a section of the column at the right of the
+ * page on large screens; elsewhere, above the bar, a card on the right (two side by side when there is room), or the
+ * whole screen between the header and the bar on narrow ones. See usePanels.
+ */
+export function PlayerPanel({ id, label, title, subtitle, onClose, docked = false, beside = false, children }: PlayerPanelProps) {
   return (
     <aside
       id={id}
       aria-label={label}
-      className="fixed inset-x-2 top-16 bottom-22 z-20 flex flex-col rounded-lg border border-neutral-800 bg-neutral-900/95 shadow-2xl backdrop-blur sm:inset-x-auto sm:top-auto sm:right-4 sm:max-h-[min(40rem,calc(100svh-8rem))] sm:w-96"
+      className={`flex flex-col ${docked ? DOCKED : FLOATING} ${beside && !docked ? 'lg:right-[25.75rem]' : ''}`}
     >
       <div className="flex items-start gap-3 border-b border-neutral-800 px-4 py-3">
         <div className="min-w-0 flex-1">

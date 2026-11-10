@@ -9,15 +9,19 @@ export const LYRICS_PANEL_ID = 'lyrics-panel'
 interface LyricsPanelProps {
   track: PlayerTrack
   onClose: () => void
+  /** A section of the column at the right of the page (see usePanels). */
+  docked?: boolean
+  /** Floating, with the queue panel open too: sit to its left. */
+  beside?: boolean
 }
 
 /** The lyrics of the track that is playing. It follows the player: the next track brings its own, or says it has none. */
-export function LyricsPanel({ track, onClose }: LyricsPanelProps) {
+export function LyricsPanel({ track, onClose, docked, beside }: LyricsPanelProps) {
   // Lists already say whether there are lyrics: no need to ask the API for a track without them.
   const lyrics = useLyrics(track.hasLyrics === false ? undefined : track.id)
 
   return (
-    <PlayerPanel id={LYRICS_PANEL_ID} label="Lyrics" title={track.title} subtitle={track.artist?.name} onClose={onClose}>
+    <PlayerPanel id={LYRICS_PANEL_ID} label="Lyrics" title={track.title} subtitle={track.artist?.name} onClose={onClose} docked={docked} beside={beside}>
       {/* A new track starts at the top of its lyrics. */}
       <div key={track.id} className="flex-1 overflow-y-auto px-4 py-4">
         {track.hasLyrics === false || lyrics.data === null ? (

@@ -34,7 +34,7 @@ const screenReaderInstructions = {
  * its handle (or from the keyboard, see the instructions above). The tracks already played aren't listed, but stay
  * in the queue for Previous.
  */
-export function QueuePanel({ onClose }: { onClose: () => void }) {
+export function QueuePanel({ onClose, docked }: { onClose: () => void; docked?: boolean }) {
   const current = usePlayer(selectCurrentTrack)
   const upcoming = usePlayer(useShallow(selectUpcoming))
   const index = usePlayer((state) => state.index)
@@ -62,7 +62,7 @@ export function QueuePanel({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <PlayerPanel id={QUEUE_PANEL_ID} label="Queue" title="Queue" subtitle={summary(upcoming)} onClose={onClose}>
+    <PlayerPanel id={QUEUE_PANEL_ID} label="Queue" title="Queue" subtitle={summary(upcoming)} onClose={onClose} docked={docked}>
       <div className="flex-1 overflow-y-auto px-2 py-3">
         {current && (
           <section aria-label="Now playing" className="mb-4">
