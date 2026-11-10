@@ -139,3 +139,20 @@ test('Favourites opens on Artists the first time, then on the tab shown last, al
   await library(page).getByRole('link', { name: 'Favourites' }).click()
   await expect(page).toHaveURL('/favourites/albums')
 })
+
+test('an album becomes a favourite from its card, and the album page and Favourites say so', async ({ page, api }) => {
+  await library(page).getByRole('link', { name: 'Albums' }).click()
+  const card = page.getByRole('main').getByRole('button', { name: 'Favourite Killer' })
+
+  await card.click()
+  await expect(card).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(() => api.favourites.album).toEqual([api.albumTitled('Killer').id])
+
+  await page.getByRole('main').getByRole('link', { name: /Killer/ }).click()
+  await expect(page.getByRole('heading', { name: 'Killer' })).toBeVisible()
+  await expect(heart(page, 'Killer')).toHaveAttribute('aria-pressed', 'true')
+
+  await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await page.getByRole('navigation', { name: 'Favourites' }).getByRole('link', { name: 'Albums' }).click()
+  await expect(heart(page, 'Killer')).toHaveAttribute('aria-pressed', 'true')
+})

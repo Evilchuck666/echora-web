@@ -20,6 +20,7 @@ interface AlbumSummary {
   title?: string
   year?: number | null
   coverUrl?: string | null
+  favourite?: boolean
   artist?: { name?: string }
 }
 
@@ -38,22 +39,25 @@ export function ArtistCard({ artist }: { artist: ArtistSummary }) {
           {name}
         </p>
       </Link>
-      <FavouriteButton
-        kind="artist"
-        id={artist.id}
-        favourite={artist.favourite}
-        name={name}
-        // Over the round thumbnail, inside its top-right edge.
-        className={`absolute top-[6%] right-[6%] h-8 w-8 rounded-full bg-neutral-950/80 ${ON_HOVER} aria-pressed:opacity-100`}
-        iconClassName="h-4.5 w-4.5"
-      />
+      {/* A layer the size of the (square) thumbnail, letting clicks through to it: the heart inside the circle's
+          bottom-right edge, as on the album cards. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
+        <FavouriteButton
+          kind="artist"
+          id={artist.id}
+          favourite={artist.favourite}
+          name={name}
+          className={`pointer-events-auto absolute right-[6%] bottom-[6%] h-8 w-8 rounded-full bg-neutral-950/80 ${ON_HOVER} aria-pressed:opacity-100`}
+          iconClassName="h-4.5 w-4.5"
+        />
+      </div>
     </div>
   )
 }
 
 /**
  * An album's cover, title and year, linking to the album; with its artist too where albums of several are mixed.
- * A "⋯" menu over the cover queues the whole album.
+ * Over the cover, a "⋯" menu that queues the whole album (top) and a heart (bottom).
  */
 export function AlbumCard({ album, showArtist = false }: { album: AlbumSummary; showArtist?: boolean }) {
   const title = album.title ?? 'Unknown album'
@@ -70,11 +74,23 @@ export function AlbumCard({ album, showArtist = false }: { album: AlbumSummary; 
         <p className="truncate text-sm text-neutral-400">{showArtist ? `${album.artist?.name ?? 'Unknown artist'} · ${year}` : year}</p>
       </Link>
       {id && (
-        <QueueMenu
-          name={title}
-          tracks={() => fetchAllTracks({ album: albumIri(id) })}
-          className="absolute top-2 right-2 rounded-full bg-neutral-950/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100"
-        />
+        // A layer the size of the (square) cover, letting clicks through to it: "⋯" in its top-right corner, the
+        // heart in its bottom-right one (kept in view while the album is a favourite).
+        <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
+          <QueueMenu
+            name={title}
+            tracks={() => fetchAllTracks({ album: albumIri(id) })}
+            className={`pointer-events-auto absolute top-2 right-2 rounded-full bg-neutral-950/80 ${ON_HOVER} has-aria-expanded:opacity-100`}
+          />
+          <FavouriteButton
+            kind="album"
+            id={id}
+            favourite={album.favourite}
+            name={title}
+            className={`pointer-events-auto absolute right-2 bottom-2 h-8 w-8 rounded-full bg-neutral-950/80 ${ON_HOVER} aria-pressed:opacity-100`}
+            iconClassName="h-4.5 w-4.5"
+          />
+        </div>
       )}
     </div>
   )
