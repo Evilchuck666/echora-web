@@ -22,6 +22,9 @@ import { selectCurrentTrack, selectUpcoming, usePlayer, type PlayerTrack, type Q
 
 export const QUEUE_PANEL_ID = 'queue-panel'
 
+/** Rows listed under "Next up": a whole library can be queued, and thousands of rows would bog the page down. */
+const SHOWN = 100
+
 /** Rows only move up and down. */
 const vertical: Modifier = ({ transform }) => ({ ...transform, x: 0 })
 
@@ -39,6 +42,7 @@ export function QueuePanel({ onClose, docked }: { onClose: () => void; docked?: 
   const upcoming = usePlayer(useShallow(selectUpcoming))
   const index = usePlayer((state) => state.index)
   const repeatAll = usePlayer((state) => state.repeat === 'all' && state.queue.length > 1)
+  const shown = upcoming.slice(0, SHOWN)
   const sensors = useSensors(
     // A few pixels before a drag starts, so a click on the handle stays a click.
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -86,14 +90,17 @@ export function QueuePanel({ onClose, docked }: { onClose: () => void; docked?: 
               onDragEnd={onDragEnd}
               accessibility={{ announcements, screenReaderInstructions }}
             >
-              <SortableContext items={upcoming.map((entry) => entry.key)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={shown.map((entry) => entry.key)} strategy={verticalListSortingStrategy}>
                 <ol>
-                  {upcoming.map((entry) => (
+                  {shown.map((entry) => (
                     <QueueRow key={entry.key} entry={entry} />
                   ))}
                 </ol>
               </SortableContext>
             </DndContext>
+          )}
+          {upcoming.length > shown.length && (
+            <p className="px-2 pt-2 pb-1 text-sm text-neutral-400">And {plural(upcoming.length - shown.length, 'more track')}.</p>
           )}
         </section>
       </div>

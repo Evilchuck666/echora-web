@@ -16,6 +16,7 @@ import {
   ShuffleIcon,
   VolumeIcon,
 } from './icons'
+import { playLibrary } from './library'
 import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
 import { QUEUE_PANEL_ID, QueuePanel } from './QueuePanel'
 import { selectCurrentTrack, selectHasNext, usePlayer, type RepeatMode } from './store'
@@ -25,8 +26,9 @@ import { usePanels } from './usePanels'
 const ARROW_SEEK_SECONDS = 5
 
 /**
- * The player, fixed at the bottom of every signed-in page once something has been played. Space plays and pauses,
- * the left and right arrows move in the track, unless the focus is on something that uses those keys itself. The
+ * The player, fixed at the bottom of every signed-in page. With nothing queued, Play (or space) plays the whole
+ * library, in order or shuffled. Space plays and pauses, the left and right arrows move in the track, unless the
+ * focus is on something that uses those keys itself. The
  * lyrics and queue panels open from it (in a column at the right of the page on large screens, see usePanels) and
  * follow the player from one track to the next.
  */
@@ -37,17 +39,28 @@ export function PlayerBar() {
   const error = usePlayer((state) => state.error)
   const hasNext = usePlayer(selectHasNext)
   const panels = usePanels()
-  const lyricsOpen = panels.isOpen('lyrics')
-  const queueOpen = panels.isOpen('queue')
+  // With nothing loaded, the panels stay closed (the column's choice is kept for when something plays).
+  const lyricsOpen = track !== undefined && panels.isOpen('lyrics')
+  const queueOpen = track !== undefined && panels.isOpen('queue')
   const { close } = panels
   const closeLyrics = useCallback(() => close('lyrics'), [close])
   const closeQueue = useCallback(() => close('queue'), [close])
+  const [startingLibrary, setStartingLibrary] = useState(false)
 
-  usePlayerShortcuts(track !== undefined)
+  const play = useCallback(async () => {
+    if (usePlayer.getState().index >= 0) {
+      togglePlay()
+      return
+    }
+    setStartingLibrary(true)
+    try {
+      await playLibrary()
+    } finally {
+      setStartingLibrary(false)
+    }
+  }, [])
 
-  if (!track) {
-    return null
-  }
+  usePlayerShortcuts(play, track !== undefined)
 
   return (
     <>
@@ -60,12 +73,21 @@ export function PlayerBar() {
         <MobileProgress />
         <div className="flex h-20 items-center gap-4 px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3 md:w-1/4 md:flex-none">
-            <Cover url={track.album?.coverUrl} alt="" className="w-12 shrink-0 rounded" />
+            <Cover url={track?.album?.coverUrl} alt="" className="w-12 shrink-0 rounded" />
             <div className="min-w-0">
-              <Link to={`/albums/${track.album?.id}`} className="block truncate font-medium hover:underline">
-                {track.title}
-              </Link>
-              {error ? (
+              {!track ? (
+                <>
+                  <p className="truncate font-medium text-neutral-300">Nothing playing</p>
+                  <p className="truncate text-sm text-neutral-500" title="Play to hear the whole library">
+                    Play to hear the whole library
+                  </p>
+                </>
+              ) : (
+                <Link to={`/albums/${track.album?.id}`} className="block truncate font-medium hover:underline">
+                  {track.title}
+                </Link>
+              )}
+              {!track ? null : error ? (
                 <p role="alert" title={errorHint(error)} className="truncate text-sm text-red-400">
                   {error}
                   {errorHint(error) && <span className="sr-only">. {errorHint(error)}</span>}
@@ -81,16 +103,24 @@ export function PlayerBar() {
           <div className="flex shrink-0 flex-col items-center gap-1 md:flex-1">
             <div className="flex items-center gap-2 sm:gap-4">
               <ShuffleButton />
-              <button type="button" onClick={previous} aria-label="Previous" className="hidden p-1 text-neutral-300 hover:text-white sm:block">
+              <button
+                type="button"
+                onClick={previous}
+                disabled={!track}
+                aria-label="Previous"
+                className="hidden p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 sm:block"
+              >
                 <PreviousIcon />
               </button>
               <button
                 type="button"
-                onClick={togglePlay}
+                onClick={() => void play()}
+                disabled={startingLibrary}
                 aria-label={playing ? 'Pause' : 'Play'}
+                title={track ? undefined : 'Play the whole library'}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-950 hover:scale-105"
               >
-                {buffering && playing ? (
+                {startingLibrary || (buffering && playing) ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-400 border-t-neutral-950" />
                 ) : playing ? (
                   <PauseIcon />
@@ -109,18 +139,18 @@ export function PlayerBar() {
               </button>
               <RepeatButton />
             </div>
-            <Progress />
+            <Progress disabled={!track} />
           </div>
 
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3 md:w-1/4">
             <button
               type="button"
               onClick={() => panels.toggle('lyrics')}
-              disabled={!lyricsOpen && track.hasLyrics === false}
+              disabled={!track || (!lyricsOpen && track.hasLyrics === false)}
               aria-label="Lyrics"
               aria-expanded={lyricsOpen}
               aria-controls={lyricsOpen ? LYRICS_PANEL_ID : undefined}
-              title={track.hasLyrics === false ? 'This track has no lyrics' : undefined}
+              title={track?.hasLyrics === false ? 'This track has no lyrics' : undefined}
               className="p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 aria-expanded:text-violet-400"
             >
               <LyricsIcon />
@@ -128,10 +158,11 @@ export function PlayerBar() {
             <button
               type="button"
               onClick={() => panels.toggle('queue')}
+              disabled={!track}
               aria-label="Queue"
               aria-expanded={queueOpen}
               aria-controls={queueOpen ? QUEUE_PANEL_ID : undefined}
-              className="p-1 text-neutral-300 hover:text-white aria-expanded:text-violet-400"
+              className="p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 aria-expanded:text-violet-400"
             >
               <QueueIcon />
             </button>
@@ -139,7 +170,7 @@ export function PlayerBar() {
           </div>
         </div>
       </section>
-      {panels.docked ? (
+      {!track ? null : panels.docked ? (
         (lyricsOpen || queueOpen) && (
           // Between the header (h-14) and the bar (h-20); AppLayout leaves the page room for it (useDockedColumn).
           <div className="fixed top-14 right-0 bottom-20 z-10 flex w-96 flex-col border-l border-neutral-800 bg-neutral-950">
@@ -159,7 +190,7 @@ export function PlayerBar() {
 }
 
 /** Elapsed time, a slider to move in the track, and the length. The slider only seeks once it is let go. */
-function Progress() {
+function Progress({ disabled }: { disabled: boolean }) {
   const currentTime = usePlayer((state) => state.currentTime)
   const duration = usePlayer((state) => state.duration)
   const [dragging, setDragging] = useState<number | null>(null)
@@ -185,9 +216,10 @@ function Progress() {
         onPointerUp={commit}
         onKeyUp={commit}
         onBlur={commit}
+        disabled={disabled}
         aria-label="Position in the track"
         aria-valuetext={`${formatDuration(shown * 1000)} of ${formatDuration(duration * 1000)}`}
-        className="h-1 flex-1 cursor-pointer accent-violet-400"
+        className="h-1 flex-1 cursor-pointer accent-violet-400 disabled:cursor-default disabled:opacity-40"
       />
       <span className="w-10">{formatDuration(duration * 1000)}</span>
     </div>
@@ -274,11 +306,9 @@ function Volume() {
   )
 }
 
-function usePlayerShortcuts(enabled: boolean) {
+/** Space does what Play does (`play`); the arrows move in the track, once one is loaded (`loaded`). */
+function usePlayerShortcuts(play: () => unknown, loaded: boolean) {
   useEffect(() => {
-    if (!enabled) {
-      return
-    }
     function onKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented) {
         return
@@ -290,7 +320,9 @@ function usePlayerShortcuts(enabled: boolean) {
       }
       if (event.key === ' ') {
         event.preventDefault()
-        togglePlay()
+        void play()
+      } else if (!loaded) {
+        return
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault()
         seekBy(-ARROW_SEEK_SECONDS)
@@ -301,5 +333,5 @@ function usePlayerShortcuts(enabled: boolean) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [enabled])
+  }, [play, loaded])
 }

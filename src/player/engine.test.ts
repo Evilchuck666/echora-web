@@ -5,6 +5,7 @@ import {
   AUTOPLAY_BLOCKED,
   addToQueue,
   cycleRepeat,
+  extendQueue,
   jumpTo,
   moveInQueue,
   next,
@@ -221,6 +222,38 @@ describe('the queue', () => {
     expect(queueIds()).toEqual(['3', '1', '4', '2'])
     expect(currentId()).toBe('1')
     expect(usePlayer.getState().index).toBe(1)
+  })
+})
+
+describe('a queue still loading (the whole library)', () => {
+  it('grows at the end, in order', () => {
+    playQueue(album, { origin: 'library' })
+
+    expect(extendQueue([track('4'), track('5')], 'library')).toBe(true)
+
+    expect(queueIds()).toEqual(['1', '2', '3', '4', '5'])
+  })
+
+  it('with shuffle on, grows anywhere after the current track, and turning shuffle off puts all in order', () => {
+    toggleShuffle()
+    playQueue(many(5), { startIndex: 2, origin: 'library' })
+    const played = queueIds().slice(0, 1)
+
+    extendQueue(many(30).slice(5), 'library')
+
+    expect(queueIds().slice(0, 1)).toEqual(played)
+    expect([...queueIds()].sort()).toEqual(many(30).map((t) => t.id).sort())
+    expect(upcomingIds()).not.toEqual(many(30).slice(5).map((t) => t.id))
+    toggleShuffle()
+    expect(queueIds()).toEqual(many(30).map((t) => t.id))
+  })
+
+  it('stops growing once another queue plays', () => {
+    playQueue(album, { origin: 'library' })
+    playQueue([track('a')], { origin: 'album:x' })
+
+    expect(extendQueue([track('4')], 'library')).toBe(false)
+    expect(queueIds()).toEqual(['a'])
   })
 })
 

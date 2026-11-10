@@ -176,3 +176,35 @@ test('play all plays every album of the artist, in order', async ({ page }) => {
     'Balls to the Wall', 'London Leatherboys', 'Fight It Back', 'Head Over Heels', 'Losing More Than You\'ve Ever Had', 'Love Child',
   ])
 })
+
+/** Every track of the mock library, in the API's order: album artists by name, albums by year, track number. */
+const LIBRARY = [
+  'Starlight', 'Breaker', 'Run If You Can',
+  'Balls to the Wall', 'London Leatherboys', 'Fight It Back', 'Head Over Heels', 'Losing More Than You\'ve Ever Had', 'Love Child',
+  'Under My Wheels', 'Be My Lover', 'Halo of Flies',
+  'Ace of Spades', 'Love Me Like a Reptile',
+]
+
+test('with nothing queued, Play plays the whole library, in order', async ({ page }) => {
+  await expect(player(page)).toContainText('Nothing playing')
+  await expect(player(page).getByRole('button', { name: 'Next' })).toBeDisabled()
+
+  await player(page).getByRole('button', { name: 'Play', exact: true }).click()
+
+  await expect(nowPlaying(page)).toHaveText('Starlight')
+  await expect(player(page).getByRole('button', { name: 'Pause' })).toBeVisible()
+  await openQueue(page)
+  await expect.poll(() => upNext(page)).toEqual(LIBRARY.slice(1))
+})
+
+test('with shuffle on, the space bar plays the whole library in any order', async ({ page }) => {
+  await player(page).getByRole('button', { name: 'Shuffle' }).click()
+  await page.getByRole('heading', { name: 'Artists' }).click()
+
+  await page.keyboard.press(' ')
+
+  await expect(player(page).getByRole('button', { name: 'Pause' })).toBeVisible()
+  await openQueue(page)
+  const current = await nowPlaying(page).textContent()
+  await expect.poll(async () => [current!, ...(await upNext(page))].sort()).toEqual([...LIBRARY].sort())
+})

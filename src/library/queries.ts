@@ -5,11 +5,7 @@ import { api, unwrap } from '../api/client'
 
 /** The page number of a collection's `view.next` link, or `undefined` on the last page. */
 export function nextPage(view?: { next?: string | null }): number | undefined {
-  if (!view?.next) {
-    return undefined
-  }
-  const page = Number(new URL(view.next, 'http://localhost').searchParams.get('page'))
-  return Number.isInteger(page) && page > 0 ? page : undefined
+  return pageNumber(view?.next)
 }
 
 /** Relations are filtered by IRI: /api/albums?artist=/api/artists/{id}. */
@@ -62,6 +58,22 @@ export function useAlbumTracks(albumId: string) {
   })
 }
 
+/** The page number in a collection's link (`view.next`, `view.last`...), if it has a usable one. */
+export function pageNumber(link?: string | null): number | undefined {
+  if (!link) {
+    return undefined
+  }
+  const page = Number(new URL(link, 'http://localhost').searchParams.get('page'))
+  return Number.isInteger(page) && page > 0 ? page : undefined
+}
+
+type TrackFilter = { album: string } | { albumArtist: string } | Record<string, never>
+
+/** One page of tracks, in the order of the library (album artist, album, disc and track number); none filtered. */
+export function fetchTracksPage(page: number, filter: TrackFilter = {}) {
+  return unwrap(api.GET('/api/tracks', { params: { query: { ...filter, page } } }))
+}
+
 /**
  * Every track of an album (`album`) or of an artist's albums (`albumArtist`, album after album), loading every
  * page: to queue them all at once.
@@ -70,7 +82,7 @@ export async function fetchAllTracks(filter: { album: string } | { albumArtist: 
   const tracks = []
   let page: number | undefined = 1
   while (page !== undefined) {
-    const result = await unwrap(api.GET('/api/tracks', { params: { query: { ...filter, page } } }))
+    const result = await fetchTracksPage(page, filter)
     tracks.push(...result.member)
     page = nextPage(result.view)
   }

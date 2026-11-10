@@ -88,6 +88,30 @@ export function addToQueue(tracks: PlayerTrack[]): void {
   setState((state) => ({ queue: [...state.queue, ...entries], unshuffled: [...state.unshuffled, ...entries] }))
 }
 
+/**
+ * Adds `tracks` to a queue that is still being loaded (the whole library, page after page): at the end, or with
+ * shuffle on, each anywhere after the current track. False once the queue is another one (`origin` changed): the
+ * loading should stop.
+ */
+export function extendQueue(tracks: PlayerTrack[], origin: string): boolean {
+  if (getState().origin !== origin) {
+    return false
+  }
+  const entries = toEntries(tracks)
+  setState((state) => {
+    const queue = [...state.queue]
+    if (state.shuffle) {
+      for (const entry of entries) {
+        queue.splice(state.index + 1 + randomIndex(queue.length - state.index), 0, entry)
+      }
+    } else {
+      queue.push(...entries)
+    }
+    return { queue, unshuffled: [...state.unshuffled, ...entries] }
+  })
+  return true
+}
+
 /** Plays the queued entry `key`. The tracks before it stay in the queue, as played. */
 export function jumpTo(key: string): void {
   const index = getState().queue.findIndex((entry) => entry.key === key)

@@ -19,7 +19,7 @@ async function openAlbum(page: Page, title: string) {
 test.beforeEach(async ({ signIn }) => signIn())
 
 test('playing an album: the player, the marked track, the system controls', async ({ page }) => {
-  await expect(player(page)).toHaveCount(0)
+  await expect(player(page)).toContainText('Nothing playing')
   await openAlbum(page, 'Balls to the Wall')
 
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
@@ -101,7 +101,7 @@ test('mute is remembered, the queue is not', async ({ page }) => {
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Killer' })).toBeVisible()
-  await expect(player(page)).toHaveCount(0)
+  await expect(player(page)).toContainText('Nothing playing')
 
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
   await expect(player(page).getByRole('button', { name: 'Unmute' })).toBeVisible()
