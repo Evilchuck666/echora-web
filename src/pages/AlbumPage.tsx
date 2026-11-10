@@ -9,6 +9,7 @@ import { useAlbum, useAlbumTracks } from '../library/queries'
 import type { Album, Track } from '../library/types'
 import { playQueue, togglePlay } from '../player/engine'
 import { NowPlayingIcon, PauseIcon, PlayIcon } from '../player/icons'
+import { QueueMenu } from '../player/QueueMenu'
 import { selectCurrentTrack, usePlayer } from '../player/store'
 
 export function AlbumPage() {
@@ -41,17 +42,21 @@ export function AlbumPage() {
   const total = tracks.data?.pages[0]?.totalItems
   const albumIsCurrent = currentTrack?.album?.id === id
 
-  /** Queues the whole album, loading the pages not shown yet, and plays from the given track. */
-  async function playFrom(index: number) {
-    let all = members
-    if (tracks.hasNextPage) {
-      let result = await tracks.fetchNextPage()
-      while (result.hasNextPage && !result.isFetchNextPageError) {
-        result = await result.fetchNextPage()
-      }
-      all = result.data?.pages.flatMap((page) => page.member) ?? members
+  /** Every track of the album, loading the pages not shown yet. */
+  async function allTracks() {
+    if (!tracks.hasNextPage) {
+      return members
     }
-    playQueue(all, index)
+    let result = await tracks.fetchNextPage()
+    while (result.hasNextPage && !result.isFetchNextPageError) {
+      result = await result.fetchNextPage()
+    }
+    return result.data?.pages.flatMap((page) => page.member) ?? members
+  }
+
+  /** Queues the whole album and plays from the given track: the first, or a random one when shuffle is on. */
+  async function playFrom(index?: number) {
+    playQueue(await allTracks(), { startIndex: index, origin: `album:${id}` })
   }
 
   function playTrack(index: number) {
@@ -87,13 +92,14 @@ export function AlbumPage() {
           </p>
           <button
             type="button"
-            onClick={() => (albumIsCurrent ? togglePlay() : void playFrom(0))}
+            onClick={() => (albumIsCurrent ? togglePlay() : void playFrom())}
             disabled={members.length === 0}
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-violet-600 py-2 pr-5 pl-4 font-medium text-white hover:bg-violet-500 disabled:opacity-50"
           >
             {albumIsCurrent && playing ? <PauseIcon /> : <PlayIcon />}
             {albumIsCurrent && playing ? 'Pause' : 'Play'}
           </button>
+          {members.length > 0 && <QueueMenu name={title} tracks={allTracks} className="mt-5 ml-2 inline-block align-middle" />}
         </div>
       </header>
 
@@ -222,6 +228,11 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
       <span className="w-12 shrink-0 text-right text-sm text-neutral-400 tabular-nums">
         {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
       </span>
+      <QueueMenu
+        name={track.title ?? 'Unknown track'}
+        tracks={() => [track]}
+        className="-my-1 shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100"
+      />
     </div>
   )
 }

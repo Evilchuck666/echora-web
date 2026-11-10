@@ -29,11 +29,12 @@ Echora Web is in early development. What it does so far:
 
 - **Sign in once**: the client signs in with your Echora account and keeps the session alive by refreshing its token on its own, even with the app open in several tabs.
 - **Browse your library**: artists with their photos, their albums and each album's tracks, in the order of the tags (disc and track number), with album covers.
-- **A player that follows you**: play an album or a single track, and keep listening while you browse. Seek anywhere, skip, change the volume (remembered), use the space bar and arrow keys, or your keyboard's media keys and the system's media controls.
+- **A player that follows you**: play an album, a single track or every album of an artist, and keep listening while you browse. Seek anywhere, skip, change the volume, shuffle and repeat (the whole queue or one track; all remembered), use the space bar and arrow keys, or your keyboard's media keys and the system's media controls.
+- **Your queue, your way**: see what plays next, jump to a track, remove it or drag it elsewhere (also by touch or keyboard). Any track or album can play next or join the end of the queue, without replacing it.
 - **Read along**: open the lyrics of the track that is playing (from its tags), and they follow the player from one track to the next.
 - **Search everything at once**: one field in the header finds artists, albums and tracks, every word in any order, ignoring accents (`motorhead` finds Motörhead). Press `/` to jump to it.
 
-Coming next: shuffle and repeat, and a queue you can see and reorder.
+Coming next: playlists and favourites, once the API has them.
 
 ---
 
@@ -156,7 +157,7 @@ GitHub Actions (`.github/workflows/ci.yaml`) runs the lint, the build, the unit 
 
 ## 🚧 Status
 
-Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing and searching the library, playing it and reading the lyrics work. Next: shuffle and repeat, and a queue panel.
+Echora Web is in early development. The [Echora API](https://github.com/Evilchuck666/Echora) is ready and signing in, browsing and searching the library, playing it with a queue you control, and reading the lyrics work. Next: playlists and favourites.
 
 ---
 

@@ -13,8 +13,8 @@ export function nextPage(view?: { next?: string | null }): number | undefined {
 }
 
 /** Relations are filtered by IRI: /api/albums?artist=/api/artists/{id}. */
-const artistIri = (id: string) => `/api/artists/${id}`
-const albumIri = (id: string) => `/api/albums/${id}`
+export const artistIri = (id: string) => `/api/artists/${id}`
+export const albumIri = (id: string) => `/api/albums/${id}`
 
 /** Every artist, by name. */
 export function useArtists() {
@@ -60,6 +60,21 @@ export function useAlbumTracks(albumId: string) {
     initialPageParam: 1,
     getNextPageParam: (lastPage) => nextPage(lastPage.view),
   })
+}
+
+/**
+ * Every track of an album (`album`) or of an artist's albums (`albumArtist`, album after album), loading every
+ * page: to queue them all at once.
+ */
+export async function fetchAllTracks(filter: { album: string } | { albumArtist: string }) {
+  const tracks = []
+  let page: number | undefined = 1
+  while (page !== undefined) {
+    const result = await unwrap(api.GET('/api/tracks', { params: { query: { ...filter, page } } }))
+    tracks.push(...result.member)
+    page = nextPage(result.view)
+  }
+  return tracks
 }
 
 /** At most this many artists, albums and tracks come back from a search: the API's maximum. */

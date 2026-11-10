@@ -61,3 +61,43 @@ export const CloseIcon = ({ className }: IconProps) => (
     <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6 10.6 12 5 6.4z" />
   </svg>
 )
+
+export const ShuffleIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M16 3h5v5l-1.8-1.8-3.6 3.6-1.4-1.4 3.6-3.6L16 3ZM3 5.6 4.4 4.2 19.2 19l1.8-1.8V21h-5l1.8-1.8L3 5.6Zm7.4 8.6 1.4 1.4-6.4 6.4L4 20.6l6.4-6.4Z" />
+  </svg>
+)
+
+export const RepeatIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7Zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4Z" />
+  </svg>
+)
+
+/** Repeat with a 1 in it: repeat the current track. */
+export const RepeatOneIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7Zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4Zm-4-2V9h-1l-2 1v1h1.5v4H13Z" />
+  </svg>
+)
+
+/** A list with a play mark: the queue. */
+export const QueueIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M3 5h14v2H3zM3 10h14v2H3zM3 15h8v2H3zM15 14.5v6l5-3-5-3Z" />
+  </svg>
+)
+
+/** Three dots: more options. */
+export const MoreIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M5 10.25a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5Zm7 0a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5Zm7 0a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5Z" />
+  </svg>
+)
+
+/** Six dots: a handle to drag. */
+export const DragHandleIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M9 5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm-6 5.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM9 16a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
+  </svg>
+)

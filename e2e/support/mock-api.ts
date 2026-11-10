@@ -294,8 +294,14 @@ export class MockApi {
     }
     if (path === '/api/tracks') {
       const albumId = url.searchParams.get('album')?.split('/').pop()
-      const tracks = this.tracks.filter((t) => !albumId || t.albumId === albumId)
-      return reply(200, this.collection('/api/tracks', tracks.map((t) => this.trackJson(t)), page))
+      const albumArtistId = url.searchParams.get('albumArtist')?.split('/').pop()
+      const albumOf = (t: MockTrack) => this.albums.find((a) => a.id === t.albumId)!
+      // Album after album (year, title), then track number, as the API sorts them.
+      const tracks = this.tracks
+        .filter((t) => (!albumId || t.albumId === albumId) && (!albumArtistId || albumOf(t).artistId === albumArtistId))
+        .sort((a, b) => (albumOf(a).year ?? 0) - (albumOf(b).year ?? 0) || albumOf(a).title.localeCompare(albumOf(b).title) || a.trackNumber - b.trackNumber)
+      const filter = [...url.searchParams].filter(([name]) => name !== 'page').map(([name, value]) => `${name}=${encodeURIComponent(value)}`).join('&')
+      return reply(200, this.collection(`/api/tracks${filter ? `?${filter}` : ''}`, tracks.map((t) => this.trackJson(t)), page))
     }
     if ((match = /^\/api\/tracks\/([^/]+)$/.exec(path))) {
       const track = this.tracks.find((t) => t.id === match![1])

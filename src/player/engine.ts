@@ -1,6 +1,6 @@
 import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
-import { usePlayer, type PlayerTrack } from './store'
+import { usePlayer, type PlayerState, type PlayerTrack, type QueueEntry, type RepeatMode } from './store'
 
 // The one audio element of the app. It lives outside React, so the music goes on while pages change; its events
 // write the store, and the controls below are the only way to drive it.
@@ -21,16 +21,113 @@ const RENEW_BEFORE_SECONDS = 60
 let loadId = 0
 /** Whether the current load already retried with a fresh stream URL after an error. */
 let retried = false
+/** Numbers the queue entries, so the same track queued twice can be told apart. */
+let entryCount = 0
 
 // --- Controls ------------------------------------------------------------------------------------------------------
 
-/** Replaces the queue with `tracks` and plays from `startIndex`. */
-export function playQueue(tracks: PlayerTrack[], startIndex = 0): void {
+interface PlayQueueOptions {
+  /** The track to start from. Without it, the first one, or a random one when shuffle is on. */
+  startIndex?: number
+  /** What the queue is started from, e.g. "artist:{id}", for a page to tell whether it is playing. */
+  origin?: string
+}
+
+/** Replaces the queue with `tracks` and plays them. With shuffle on, the tracks after the first come in any order. */
+export function playQueue(tracks: PlayerTrack[], { startIndex, origin }: PlayQueueOptions = {}): void {
   if (tracks.length === 0) {
     return
   }
-  setState({ queue: tracks })
-  void load(Math.min(Math.max(startIndex, 0), tracks.length - 1))
+  const entries = toEntries(tracks)
+  const shuffle = getState().shuffle
+  const start = Math.min(Math.max(startIndex ?? (shuffle ? randomIndex(entries.length) : 0), 0), entries.length - 1)
+  const queue = shuffle ? [entries[start], ...shuffled(entries.filter((_, i) => i !== start))] : entries
+  setState({ queue, unshuffled: entries, origin: origin ?? null })
+  void load(shuffle ? 0 : start)
+}
+
+/** Queues `tracks` right after the current one, in their order. With nothing queued, they are loaded, paused. */
+export function playNext(tracks: PlayerTrack[]): void {
+  if (tracks.length === 0) {
+    return
+  }
+  const { queue, unshuffled, index } = getState()
+  if (index < 0) {
+    cue(tracks)
+    return
+  }
+  const entries = toEntries(tracks)
+  const current = queue[index]
+  const at = unshuffled.findIndex((entry) => entry.key === current.key) + 1
+  setState({
+    queue: [...queue.slice(0, index + 1), ...entries, ...queue.slice(index + 1)],
+    unshuffled: [...unshuffled.slice(0, at), ...entries, ...unshuffled.slice(at)],
+  })
+}
+
+/** Queues `tracks` at the end. With nothing queued, they are loaded, paused. */
+export function addToQueue(tracks: PlayerTrack[]): void {
+  if (tracks.length === 0) {
+    return
+  }
+  if (getState().index < 0) {
+    cue(tracks)
+    return
+  }
+  const entries = toEntries(tracks)
+  setState((state) => ({ queue: [...state.queue, ...entries], unshuffled: [...state.unshuffled, ...entries] }))
+}
+
+/** Plays the queued entry `key`. The tracks before it stay in the queue, as played. */
+export function jumpTo(key: string): void {
+  const index = getState().queue.findIndex((entry) => entry.key === key)
+  if (index >= 0) {
+    void load(index)
+  }
+}
+
+/** Takes the entry `key` out of the queue. The current track stays: skip it instead. */
+export function removeFromQueue(key: string): void {
+  const { queue, index } = getState()
+  if (queue[index]?.key === key) {
+    return
+  }
+  setState((state) => withQueue(state.queue.filter((entry) => entry.key !== key), {
+    unshuffled: state.unshuffled.filter((entry) => entry.key !== key),
+  }))
+}
+
+/**
+ * Moves the entry `key` to position `to` in the queue. With shuffle off this is the queue's order from now on; with
+ * shuffle on, turning it off brings back the order the tracks were queued in.
+ */
+export function moveInQueue(key: string, to: number): void {
+  const { queue, shuffle } = getState()
+  const from = queue.findIndex((entry) => entry.key === key)
+  if (from < 0) {
+    return
+  }
+  const moved = [...queue]
+  const [entry] = moved.splice(from, 1)
+  moved.splice(Math.min(Math.max(to, 0), moved.length), 0, entry)
+  setState(withQueue(moved, shuffle ? {} : { unshuffled: moved }))
+}
+
+/** Shuffles the tracks after the current one, or puts the queue back in the order its tracks were queued in. */
+export function toggleShuffle(): void {
+  const { shuffle, queue, unshuffled, index } = getState()
+  if (shuffle) {
+    setState(withQueue(unshuffled, { shuffle: false }))
+  } else {
+    setState({ shuffle: true, unshuffled: queue, queue: [...queue.slice(0, index + 1), ...shuffled(queue.slice(index + 1))] })
+  }
+}
+
+const NEXT_REPEAT_MODE: Record<RepeatMode, RepeatMode> = { off: 'all', all: 'one', one: 'off' }
+
+/** Off, then the whole queue, then the current track, then off again. */
+export function cycleRepeat(): void {
+  setState((state) => ({ repeat: NEXT_REPEAT_MODE[state.repeat] }))
 }
 
 export function togglePlay(): void {
@@ -47,10 +144,13 @@ export function togglePlay(): void {
   }
 }
 
+/** The next track; after the last one, the first again when repeating the queue. */
 export function next(): void {
-  const { index, queue } = getState()
+  const { index, queue, repeat } = getState()
   if (index + 1 < queue.length) {
     void load(index + 1)
+  } else if (repeat === 'all' && queue.length > 0) {
+    void load(0)
   }
 }
 
@@ -98,14 +198,49 @@ export function stop(): void {
   audio.pause()
   audio.removeAttribute('src')
   audio.load()
-  setState({ queue: [], index: -1, playing: false, buffering: false, currentTime: 0, duration: 0, error: null })
+  setState({ queue: [], unshuffled: [], index: -1, origin: null, playing: false, buffering: false, currentTime: 0, duration: 0, error: null })
+  updateMediaSession()
+}
+
+// --- Queue helpers -------------------------------------------------------------------------------------------------
+
+function toEntries(tracks: PlayerTrack[]): QueueEntry[] {
+  return tracks.map((track) => ({ key: `entry-${++entryCount}`, track }))
+}
+
+function randomIndex(length: number): number {
+  return Math.floor(Math.random() * length)
+}
+
+/** A shuffled copy (Fisher-Yates). */
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1)
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
+/** A new queue, with the index following the current entry to wherever it is now. */
+function withQueue(queue: QueueEntry[], changes: Partial<PlayerState> = {}): Partial<PlayerState> {
+  const { queue: previous, index } = getState()
+  const currentKey = previous[index]?.key
+  return { ...changes, queue, index: queue.findIndex((entry) => entry.key === currentKey) }
+}
+
+/** Loads `tracks` as the queue without playing, for Play next and Add to queue when nothing is queued. */
+function cue(tracks: PlayerTrack[]): void {
+  const entries = toEntries(tracks)
+  const queue = getState().shuffle ? shuffled(entries) : entries
+  setState({ queue, unshuffled: entries, origin: null, index: 0, currentTime: 0, duration: (queue[0].track.durationMs ?? 0) / 1000, error: null })
   updateMediaSession()
 }
 
 // --- Loading -------------------------------------------------------------------------------------------------------
 
 async function load(index: number, startAt = 0): Promise<void> {
-  const track = getState().queue[index]
+  const track = getState().queue[index]?.track
   if (!track) {
     return
   }
@@ -176,15 +311,16 @@ function fail(): void {
 
 /** Fetches the track again for a new signed stream URL, and keeps it in the queue for the next time. */
 async function freshStreamUrl(index: number): Promise<string | undefined> {
-  const track = getState().queue[index]
-  if (!track?.id) {
+  const entry = getState().queue[index]
+  if (!entry?.track.id) {
     return undefined
   }
   try {
-    const { data } = await api.GET('/api/tracks/{id}', { params: { path: { id: track.id } } })
+    const { data } = await api.GET('/api/tracks/{id}', { params: { path: { id: entry.track.id } } })
     const url = data?.streamUrl
     if (url) {
-      setState((state) => ({ queue: state.queue.map((queued, i) => (i === index ? { ...queued, streamUrl: url } : queued)) }))
+      const renew = (queued: QueueEntry) => (queued.key === entry.key ? { ...queued, track: { ...queued.track, streamUrl: url } } : queued)
+      setState((state) => ({ queue: state.queue.map(renew), unshuffled: state.unshuffled.map(renew) }))
     }
     return url
   } catch {
@@ -215,9 +351,14 @@ audio.addEventListener('canplay', () => setState({ buffering: false }))
 audio.addEventListener('seeked', updatePositionState)
 audio.addEventListener('error', () => void recover())
 audio.addEventListener('ended', () => {
-  const { index, queue } = getState()
-  if (index + 1 < queue.length) {
+  const { index, queue, repeat } = getState()
+  if (repeat === 'one') {
+    audio.currentTime = 0
+    void play()
+  } else if (index + 1 < queue.length) {
     void load(index + 1)
+  } else if (repeat === 'all') {
+    void load(0)
   } else {
     // End of the queue: stay on the last track, back at its start.
     audio.currentTime = 0
@@ -254,7 +395,7 @@ function updateMediaSession(): void {
   if (!('mediaSession' in navigator)) {
     return
   }
-  const track = getState().queue[getState().index]
+  const track = getState().queue[getState().index]?.track
   navigator.mediaSession.metadata = track
     ? new MediaMetadata({
         title: track.title ?? '',

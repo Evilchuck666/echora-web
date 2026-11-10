@@ -1,11 +1,24 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Cover } from '../components/Cover'
 import { formatDuration } from '../library/format'
-import { next, previous, seek, seekBy, setVolume, toggleMute, togglePlay } from './engine'
-import { LyricsIcon, MutedIcon, NextIcon, PauseIcon, PlayIcon, PreviousIcon, VolumeIcon } from './icons'
+import { cycleRepeat, next, previous, seek, seekBy, setVolume, toggleMute, togglePlay, toggleShuffle } from './engine'
+import {
+  LyricsIcon,
+  MutedIcon,
+  NextIcon,
+  PauseIcon,
+  PlayIcon,
+  PreviousIcon,
+  QueueIcon,
+  RepeatIcon,
+  RepeatOneIcon,
+  ShuffleIcon,
+  VolumeIcon,
+} from './icons'
 import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
-import { selectCurrentTrack, usePlayer } from './store'
+import { QUEUE_PANEL_ID, QueuePanel } from './QueuePanel'
+import { selectCurrentTrack, selectHasNext, usePlayer, type RepeatMode } from './store'
 
 /** Arrow keys move this many seconds in the track. */
 const ARROW_SEEK_SECONDS = 5
@@ -13,15 +26,17 @@ const ARROW_SEEK_SECONDS = 5
 /**
  * The player, fixed at the bottom of every signed-in page once something has been played. Space plays and pauses,
  * the left and right arrows move in the track, unless the focus is on something that uses those keys itself. The
- * lyrics panel opens above it and stays open from one track to the next.
+ * lyrics and queue panels open above it, one at a time, and stay open from one track to the next.
  */
 export function PlayerBar() {
   const track = usePlayer(selectCurrentTrack)
   const playing = usePlayer((state) => state.playing)
   const buffering = usePlayer((state) => state.buffering)
   const error = usePlayer((state) => state.error)
-  const hasNext = usePlayer((state) => state.index + 1 < state.queue.length)
-  const [lyricsOpen, setLyricsOpen] = useState(false)
+  const hasNext = usePlayer(selectHasNext)
+  const [panel, setPanel] = useState<'lyrics' | 'queue' | null>(null)
+  const closePanel = useCallback(() => setPanel(null), [])
+  const toggle = (which: 'lyrics' | 'queue') => setPanel((open) => (open === which ? null : which))
 
   usePlayerShortcuts(track !== undefined)
 
@@ -59,6 +74,7 @@ export function PlayerBar() {
 
           <div className="flex shrink-0 flex-col items-center gap-1 md:flex-1">
             <div className="flex items-center gap-2 sm:gap-4">
+              <ShuffleButton />
               <button type="button" onClick={previous} aria-label="Previous" className="hidden p-1 text-neutral-300 hover:text-white sm:block">
                 <PreviousIcon />
               </button>
@@ -85,28 +101,40 @@ export function PlayerBar() {
               >
                 <NextIcon />
               </button>
+              <RepeatButton />
             </div>
             <Progress />
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-3 md:w-1/4">
+          <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3 md:w-1/4">
             <button
               type="button"
-              onClick={() => setLyricsOpen((open) => !open)}
-              disabled={!lyricsOpen && track.hasLyrics === false}
+              onClick={() => toggle('lyrics')}
+              disabled={panel !== 'lyrics' && track.hasLyrics === false}
               aria-label="Lyrics"
-              aria-expanded={lyricsOpen}
-              aria-controls={lyricsOpen ? LYRICS_PANEL_ID : undefined}
+              aria-expanded={panel === 'lyrics'}
+              aria-controls={panel === 'lyrics' ? LYRICS_PANEL_ID : undefined}
               title={track.hasLyrics === false ? 'This track has no lyrics' : undefined}
               className="p-1 text-neutral-300 hover:text-white disabled:opacity-30 disabled:hover:text-neutral-300 aria-expanded:text-violet-400"
             >
               <LyricsIcon />
             </button>
+            <button
+              type="button"
+              onClick={() => toggle('queue')}
+              aria-label="Queue"
+              aria-expanded={panel === 'queue'}
+              aria-controls={panel === 'queue' ? QUEUE_PANEL_ID : undefined}
+              className="p-1 text-neutral-300 hover:text-white aria-expanded:text-violet-400"
+            >
+              <QueueIcon />
+            </button>
             <Volume />
           </div>
         </div>
       </section>
-      {lyricsOpen && <LyricsPanel track={track} onClose={() => setLyricsOpen(false)} />}
+      {panel === 'lyrics' && <LyricsPanel track={track} onClose={closePanel} />}
+      {panel === 'queue' && <QueuePanel onClose={closePanel} />}
     </>
   )
 }
@@ -155,6 +183,45 @@ function MobileProgress() {
     <div aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-neutral-800 sm:hidden">
       <div className="h-full bg-violet-400" style={{ width: `${fraction * 100}%` }} />
     </div>
+  )
+}
+
+function ShuffleButton() {
+  const shuffle = usePlayer((state) => state.shuffle)
+
+  return (
+    <button
+      type="button"
+      onClick={toggleShuffle}
+      aria-label="Shuffle"
+      aria-pressed={shuffle}
+      className="hidden p-1 text-neutral-400 hover:text-white aria-pressed:text-violet-400 sm:block"
+    >
+      <ShuffleIcon className="h-4.5 w-4.5" />
+    </button>
+  )
+}
+
+const REPEAT_LABELS: Record<RepeatMode, string> = {
+  off: 'Repeat: off',
+  all: 'Repeat: the whole queue',
+  one: 'Repeat: this track',
+}
+
+/** Off, the whole queue, this track: each click moves to the next mode. */
+function RepeatButton() {
+  const repeat = usePlayer((state) => state.repeat)
+
+  return (
+    <button
+      type="button"
+      onClick={cycleRepeat}
+      aria-label={REPEAT_LABELS[repeat]}
+      title={REPEAT_LABELS[repeat]}
+      className={`hidden p-1 hover:text-white sm:block ${repeat === 'off' ? 'text-neutral-400' : 'text-violet-400'}`}
+    >
+      {repeat === 'one' ? <RepeatOneIcon className="h-4.5 w-4.5" /> : <RepeatIcon className="h-4.5 w-4.5" />}
+    </button>
   )
 }
 

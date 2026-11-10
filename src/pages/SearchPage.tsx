@@ -10,6 +10,7 @@ import { useLeaveSearch } from '../library/search'
 import type { SearchTrack } from '../library/types'
 import { playQueue, togglePlay } from '../player/engine'
 import { NowPlayingIcon, PauseIcon, PlayIcon } from '../player/icons'
+import { QueueMenu } from '../player/QueueMenu'
 import { selectCurrentTrack, usePlayer } from '../player/store'
 
 /** How many results each section shows before "Show all": one row of cards at full width. */
@@ -182,6 +183,11 @@ function TrackResult({ track }: { track: SearchTrack }) {
       <span className="w-12 shrink-0 text-right text-sm text-neutral-400 tabular-nums">
         {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
       </span>
+      <QueueMenu
+        name={track.title ?? 'Unknown track'}
+        tracks={() => [track]}
+        className="shrink-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 has-aria-expanded:opacity-100"
+      />
     </div>
   )
 }

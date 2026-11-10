@@ -264,6 +264,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracks/{id}/stream/opus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Streams the audio of a FLAC track converted to Opus
+         * @description Returns the audio of a FLAC track converted to Opus (Ogg container, 256 kbit/s), about a quarter of the size of the original, to save bandwidth. MP3 tracks are not converted: they have no opusStreamUrl. The first request for a track waits for the conversion (a few seconds); the result is kept on the server, so later requests are as fast as the original file. Supports HTTP Range requests. Authenticate with a JWT, or call the opusStreamUrl of the track as is: like streamUrl, it needs no Authorization header.
+         */
+        get: operations["stream_track_opus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -543,7 +563,10 @@ export interface components {
             /** @description How many tracks match, including the ones beyond the limit */
             totalTracks?: number;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track-search.read_artist.read_album.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -562,10 +585,15 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track-track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -584,10 +612,15 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track-track.read_track.item": {
             /** Format: uuid */
             readonly id?: string;
@@ -608,10 +641,15 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track.jsonld-search.read_artist.read_album.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
@@ -630,10 +668,15 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track.jsonld-track.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
@@ -652,10 +695,15 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream. */
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track.jsonld-track.read_track.item": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
@@ -676,6 +724,8 @@ export interface components {
             readonly fileSize?: number | string;
             /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
             streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1098,6 +1148,10 @@ export interface operations {
                 artist?: string;
                 /** @description IRI of the track artist, e.g. /api/artists/{id} */
                 "artist[]"?: string[];
+                /** @description IRI of the album artist, e.g. /api/artists/{id}: every track of their albums, album after album */
+                albumArtist?: string;
+                /** @description IRI of the album artist, e.g. /api/artists/{id}: every track of their albums, album after album */
+                "albumArtist[]"?: string[];
                 /** @description Part of the track title, case-insensitive */
                 title?: string;
                 /** @description Part of the track title, case-insensitive */
@@ -1210,6 +1264,67 @@ export interface operations {
                 content?: never;
             };
             /** @description The track does not exist, or its file is missing from the library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The byte range asked for is outside the file */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stream_track_opus: {
+        parameters: {
+            query?: {
+                /** @description Expiration of a signed opusStreamUrl (Unix timestamp); part of the URL, not to be built by hand */
+                _expiration?: number;
+                /** @description Signature of a signed opusStreamUrl; part of the URL, not to be built by hand */
+                _hash?: string;
+            };
+            header?: {
+                /** @description Byte range to return, e.g. "bytes=0-1023" */
+                Range?: string;
+            };
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The whole audio, converted to Opus */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/ogg": string;
+                };
+            };
+            /** @description The byte range asked for in the Range header */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/ogg": string;
+                };
+            };
+            /** @description Neither a valid JWT nor a valid, unexpired signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist, is not a FLAC file (MP3 tracks are not converted), or its file is missing from the library */
             404: {
                 headers: {
                     [name: string]: unknown;
