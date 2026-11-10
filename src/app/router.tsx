@@ -5,7 +5,7 @@ import { AlbumPage } from '../pages/AlbumPage'
 import { AlbumsPage } from '../pages/AlbumsPage'
 import { ArtistPage } from '../pages/ArtistPage'
 import { ArtistsPage } from '../pages/ArtistsPage'
-import { FavouritesPage } from '../pages/FavouritesPage'
+import { FavouritesPage, FavouritesRedirect } from '../pages/FavouritesPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PlaylistPage } from '../pages/PlaylistPage'
@@ -26,9 +26,10 @@ export const router = createBrowserRouter([
           { path: '/albums/:id', element: <AlbumPage /> },
           { path: '/tracks', element: <TracksPage /> },
           { path: '/search', element: <SearchPage /> },
-          { path: '/favourites', element: <FavouritesPage kind="track" /> },
-          { path: '/favourites/albums', element: <FavouritesPage kind="album" /> },
+          { path: '/favourites', element: <FavouritesRedirect /> },
           { path: '/favourites/artists', element: <FavouritesPage kind="artist" /> },
+          { path: '/favourites/albums', element: <FavouritesPage kind="album" /> },
+          { path: '/favourites/tracks', element: <FavouritesPage kind="track" /> },
           { path: '/playlists/:id', element: <PlaylistPage /> },
         ],
       },

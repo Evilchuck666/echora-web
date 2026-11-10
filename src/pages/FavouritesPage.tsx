@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { NavLink } from 'react-router'
+import { useEffect, type ReactNode } from 'react'
+import { Navigate, NavLink } from 'react-router'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { AlbumCard, ArtistCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
@@ -16,16 +16,44 @@ const GRID = 'grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:
 /** The origin of a queue made of the favourite tracks. */
 const FAVOURITES = 'favourites'
 
-/** The user's favourite tracks, albums or artists (one tab each, newest first). */
+/** The last tab shown, kept in this browser. */
+const TAB_KEY = 'echora.favouritesTab'
+
+const TABS: Record<FavouriteKind, string> = { artist: 'artists', album: 'albums', track: 'tracks' }
+
+/** The tab /favourites opens on: the last one shown, else Artists, the first one. */
+function rememberedTab(): string {
+  try {
+    const tab = localStorage.getItem(TAB_KEY)
+    return tab && Object.values(TABS).includes(tab) ? tab : TABS.artist
+  } catch {
+    return TABS.artist
+  }
+}
+
+/** /favourites (the sidebar's link): to the tab shown last. */
+export function FavouritesRedirect() {
+  return <Navigate to={`/favourites/${rememberedTab()}`} replace />
+}
+
+/** The user's favourite artists, albums or tracks (one tab each, newest first). The tab shown is remembered. */
 export function FavouritesPage({ kind }: { kind: FavouriteKind }) {
+  useEffect(() => {
+    try {
+      localStorage.setItem(TAB_KEY, TABS[kind])
+    } catch {
+      // No storage (a private window): /favourites opens on Artists.
+    }
+  }, [kind])
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <h1 className="text-3xl font-semibold tracking-tight">Favourites</h1>
       <nav aria-label="Favourites" className="mt-4 mb-6 flex gap-2">
-        {/* In the sidebar's order (Artists, Albums, Tracks); /favourites itself opens on the tracks, the most used. */}
+        {/* In the sidebar's order. */}
         <Tab to="/favourites/artists">Artists</Tab>
         <Tab to="/favourites/albums">Albums</Tab>
-        <Tab to="/favourites">Tracks</Tab>
+        <Tab to="/favourites/tracks">Tracks</Tab>
       </nav>
       {kind === 'track' ? <FavouriteTracks /> : kind === 'album' ? <FavouriteAlbums /> : <FavouriteArtists />}
     </main>

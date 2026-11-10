@@ -22,11 +22,13 @@ test('a track becomes a favourite from its album, and the favourites page lists 
   await expect.poll(() => api.favourites.track.length).toBe(1)
 
   await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await page.getByRole('navigation', { name: 'Favourites' }).getByRole('link', { name: 'Tracks' }).click()
   await expect(page.getByRole('heading', { name: 'Favourites' })).toBeVisible()
   await expect(page.getByRole('main').getByRole('link', { name: 'Be My Lover' })).toBeVisible()
   await expect(heart(page, 'Be My Lover')).toHaveAttribute('aria-pressed', 'true')
 
-  // Removed from the favourites page, it stays until the page is shown again, so it can be put back.
+  // Removed from the favourites page, it stays until the page is shown again, so it can be put back. (The sidebar
+  // brings back the tab shown last: Tracks.)
   await heart(page, 'Be My Lover').click()
   await expect(heart(page, 'Be My Lover')).toHaveAttribute('aria-pressed', 'false')
   await expect.poll(() => api.favourites.track.length).toBe(0)
@@ -81,6 +83,7 @@ test('Play on the favourites page plays them, newest first', async ({ page }) =>
   await heart(page, 'Halo of Flies').click()
 
   await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await page.getByRole('navigation', { name: 'Favourites' }).getByRole('link', { name: 'Tracks' }).click()
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
 
   await expect(player(page).getByRole('link').first()).toHaveText('Halo of Flies')
@@ -101,7 +104,7 @@ test('on a small screen the navigation slides in from the header', async ({ page
 
   await menu.click()
   await drawer.getByRole('link', { name: 'Favourites' }).click()
-  await expect(page).toHaveURL('/favourites')
+  await expect(page).toHaveURL('/favourites/artists')
   await expect(drawer).toHaveCount(0)
 })
 
@@ -118,4 +121,21 @@ test('an artist becomes a favourite from its card, and its card says so everywhe
   await library(page).getByRole('link', { name: 'Favourites' }).click()
   await page.getByRole('navigation', { name: 'Favourites' }).getByRole('link', { name: 'Artists' }).click()
   await expect(heartOf(page.getByRole('main'))).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('Favourites opens on Artists the first time, then on the tab shown last, also after a reload', async ({ page }) => {
+  const tabs = page.getByRole('navigation', { name: 'Favourites' })
+  await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await expect(page).toHaveURL('/favourites/artists')
+  await expect(tabs.getByRole('link', { name: 'Artists' })).toHaveAttribute('aria-current', 'page')
+
+  await tabs.getByRole('link', { name: 'Albums' }).click()
+  await library(page).getByRole('link', { name: 'Artists' }).click()
+  await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await expect(page).toHaveURL('/favourites/albums')
+  await expect(library(page).getByRole('link', { name: 'Favourites' })).toHaveAttribute('aria-current', 'page')
+
+  await page.goto('/')
+  await library(page).getByRole('link', { name: 'Favourites' }).click()
+  await expect(page).toHaveURL('/favourites/albums')
 })
