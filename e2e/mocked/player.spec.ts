@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, test } from '../support/fixtures.ts'
+import { expect, fillSignIn, signOut, test } from '../support/fixtures.ts'
 import { PASSWORD, TRACK_SECONDS, USERNAME } from '../support/mock-api.ts'
 
 const player = (page: Page) => page.getByRole('region', { name: 'Player' })
@@ -124,12 +124,10 @@ test('signing out forgets the queue', async ({ page }) => {
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
   await expect(player(page).getByRole('button', { name: 'Pause' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page).toHaveURL('/login')
   // Signing in again goes back to the album.
-  await page.getByLabel('Username').fill(USERNAME)
-  await page.getByLabel('Password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await fillSignIn(page, USERNAME, PASSWORD)
   await expect(page.getByRole('heading', { name: 'Killer' })).toBeVisible()
 
   await expect(player(page)).toContainText('Nothing playing')
@@ -278,7 +276,7 @@ test('signing out stops the music', async ({ page }) => {
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
   await expectPlaying(page)
 
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await signOut(page)
 
   await expect(page).toHaveURL('/login')
   await expect(player(page)).toHaveCount(0)

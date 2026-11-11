@@ -1,10 +1,9 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, Outlet, ScrollRestoration } from 'react-router'
-import { signOut } from '../auth/session'
-import { useCurrentUser } from '../auth/useCurrentUser'
 import { PlayerBar } from '../player/PlayerBar'
 import { MenuIcon } from '../player/icons'
 import { useDockedColumn } from '../player/usePanels'
+import { AccountMenu } from './AccountMenu'
 import { NAV_DRAWER_ID, NavDrawer } from './NavDrawer'
 import { Navigation } from './Navigation'
 import { SearchBox } from './SearchBox'
@@ -15,7 +14,6 @@ import { Toaster } from './Toaster'
  * the header on small ones), the page, and the player with its column of panels.
  */
 export function AppLayout() {
-  const { data: user } = useCurrentUser()
   // On large screens the player's panels have a column at the right: the page takes the rest.
   const dockedColumn = useDockedColumn()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -45,11 +43,8 @@ export function AppLayout() {
         <div className="mx-4 max-w-md flex-1">
           <SearchBox />
         </div>
-        <div className="flex shrink-0 items-center gap-4 text-sm">
-          {user && <span className="hidden text-neutral-400 sm:inline">{user.username}</span>}
-          <button type="button" onClick={() => void signOut()} className="text-neutral-300 hover:text-white">
-            Sign out
-          </button>
+        <div className="-mr-1 shrink-0">
+          <AccountMenu />
         </div>
       </header>
       {/* Between the header (h-14) and the player bar (h-20), as the player's column on the other side. */}

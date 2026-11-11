@@ -392,6 +392,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the server still needs its first account
+         * @description Public. While `required` is true, clients show a screen to create the administrator (POST /api/setup) instead of signing in.
+         */
+        get: operations["api_setup_get"];
+        put?: never;
+        /**
+         * Creates the first account of the server, which becomes its administrator
+         * @description Public, and only while the server has no account. The username is made from the email (the part before the @); it can be changed afterwards.
+         */
+        post: operations["api_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/favourites/tracks": {
         parameters: {
             query?: never;
@@ -544,13 +568,129 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Retrieves a User resource.
-         * @description Retrieves a User resource.
+         * The account the request is authenticated as
+         * @description The account the request is authenticated as
          */
         get: operations["api_me_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Changes the name, username or email of the account the request is authenticated as
+         * @description Send any of `name`, `username` and `email` as application/merge-patch+json. Sessions stay open: they name the account by its id. The password has its own endpoint (POST /api/me/password).
+         */
+        patch: operations["api_me_patch"];
+        trace?: never;
+    };
+    "/api/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets the profile picture of the account the request is authenticated as */
+        post: operations["upload_my_avatar"];
+        /** Removes the profile picture of the account the request is authenticated as */
+        delete: operations["delete_my_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changes the password of the account the request is authenticated as
+         * @description Changes the password of the account the request is authenticated as
+         */
+        post: operations["api_mepassword_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every account, by username (administrators only)
+         * @description Every account, by username (administrators only)
+         */
+        get: operations["api_users_get_collection"];
+        put?: never;
+        /**
+         * Creates an account (administrators only)
+         * @description The username is made from the email (the part before the @, with a number added if it is taken); it can be changed afterwards.
+         */
+        post: operations["api_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An account (administrators only)
+         * @description An account (administrators only)
+         */
+        get: operations["api_users_id_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes an account, with its playlists, favourites and picture (administrators only)
+         * @description Its sessions end at once.
+         */
+        delete: operations["api_users_id_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Changes an account (administrators only)
+         * @description Any of `name`, `username`, `email`, `admin` and `password`, as application/merge-patch+json. A new password signs the account out of every device. The last administrator cannot stop being one.
+         */
+        patch: operations["api_users_id_patch"];
+        trace?: never;
+    };
+    "/api/users/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The profile picture of an account
+         * @description Use the avatarUrl of the account: it carries a signature (_hash, _expiration) and needs no Authorization header, so it can be the src of an <img>. It changes with the picture.
+         */
+        get: operations["get_user_avatar"];
+        put?: never;
+        /** Sets the profile picture of an account (administrators only) */
+        post: operations["upload_user_avatar"];
+        /** Removes the profile picture of an account (administrators only) */
+        delete: operations["delete_user_avatar"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1078,6 +1218,32 @@ export interface components {
             totalTracks?: number;
         };
         /**
+         * @description Setting up a new server: until it has an account, whoever comes first creates the administrator (like Immich).
+         *     Public routes (security.yaml).
+         */
+        Setup: {
+            /** @description True while the server has no account */
+            required?: boolean;
+        };
+        /**
+         * @description Setting up a new server: until it has an account, whoever comes first creates the administrator (like Immich).
+         *     Public routes (security.yaml).
+         */
+        "Setup.SetupInput": {
+            /** Format: email */
+            email: string;
+            name: string;
+            password?: string;
+        };
+        /**
+         * @description Setting up a new server: until it has an account, whoever comes first creates the administrator (like Immich).
+         *     Public routes (security.yaml).
+         */
+        "Setup.jsonld": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description True while the server has no account */
+            required?: boolean;
+        };
+        /**
          * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
          *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
          */
@@ -1337,21 +1503,123 @@ export interface components {
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
-        /** @description The account the request is authenticated as. */
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
         "User-user.read": {
             /** Format: uuid */
             readonly id?: string;
             /** @description Roles besides ROLE_USER, which every account has */
             readonly roles?: string[];
+            /**
+             * Format: email
+             * @description Unique; signs in like the username. Null for older accounts until one is set
+             */
+            email?: string | null;
+            /** @description The name shown to others: 1 to 100 characters */
+            name: string | null;
+            /** @description Signed URL of the profile picture (a JPEG of up to 300×300), usable as the src of an <img>; null without one. Changes when the picture does */
+            avatarUrl?: string | null;
+            /** @description Unique: 3 to 32 letters, digits, dots, dashes or underscores. Signs in like the email */
+            username?: string;
+            /** @description Whether the account manages the server (the accounts, through /api/users) */
+            admin?: boolean;
+        };
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
+        "User-user.self.jsonMergePatch": {
+            /**
+             * Format: email
+             * @description Unique; signs in like the username. Null for older accounts until one is set
+             */
+            email?: string | null;
+            /** @description The name shown to others: 1 to 100 characters */
+            name?: string | null;
+            /** @description Unique: 3 to 32 letters, digits, dots, dashes or underscores. Signs in like the email */
             username?: string;
         };
-        /** @description The account the request is authenticated as. */
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
+        "User-user.self_user.admin.jsonMergePatch": {
+            /** @description A new password: signs the account out of every device */
+            password?: string;
+            /**
+             * Format: email
+             * @description Unique; signs in like the username. Null for older accounts until one is set
+             */
+            email?: string | null;
+            /** @description The name shown to others: 1 to 100 characters */
+            name?: string | null;
+            /** @description Unique: 3 to 32 letters, digits, dots, dashes or underscores. Signs in like the email */
+            username?: string;
+            /** @description Whether the account manages the server (the accounts, through /api/users) */
+            admin?: boolean;
+        };
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
+        "User.PasswordChange": {
+            currentPassword: string;
+            newPassword?: string;
+        };
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
+        "User.UserInput": {
+            /** Format: email */
+            email: string;
+            name: string;
+            password?: string;
+            /** @description Whether the account manages the server too. */
+            admin?: boolean;
+        };
+        /**
+         * @description An account that can sign in, with its email or its username. The first one is created by POST /api/setup and is an
+         *     administrator; administrators manage the others (/api/users). Everyone manages their own account (/api/me). The
+         *     app:user:* console commands remain, to get back in.
+         *
+         *     Sessions (JWTs, refresh tokens) name the account by its id, which never changes: renaming it keeps them.
+         */
         "User.jsonld-user.read": components["schemas"]["HydraItemBaseSchema"] & {
             /** Format: uuid */
             readonly id?: string;
             /** @description Roles besides ROLE_USER, which every account has */
             readonly roles?: string[];
+            /**
+             * Format: email
+             * @description Unique; signs in like the username. Null for older accounts until one is set
+             */
+            email?: string | null;
+            /** @description The name shown to others: 1 to 100 characters */
+            name: string | null;
+            /** @description Signed URL of the profile picture (a JPEG of up to 300×300), usable as the src of an <img>; null without one. Changes when the picture does */
+            avatarUrl?: string | null;
+            /** @description Unique: 3 to 32 letters, digits, dots, dashes or underscores. Signs in like the email */
             username?: string;
+            /** @description Whether the account manages the server (the accounts, through /api/users) */
+            admin?: boolean;
         };
     };
     responses: never;
@@ -2328,6 +2596,94 @@ export interface operations {
             };
         };
     };
+    api_setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Setup.jsonld"];
+                    "application/json": components["schemas"]["Setup"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Setup resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["Setup.SetupInput"];
+                "application/json": components["schemas"]["Setup.SetupInput"];
+            };
+        };
+        responses: {
+            /** @description The administrator was created and is signed in: a JWT and a refresh token, as by POST /api/auth */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Setup.jsonld"];
+                    "application/json": components["schemas"]["Setup"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The server already has an account: sign in instead */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An invalid email, name or password */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
     favourites_tracks: {
         parameters: {
             query?: {
@@ -2726,6 +3082,578 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    api_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The updated User resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["User-user.self.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description User resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["User.jsonld-user.read"];
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    upload_my_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The picture: JPEG, PNG or WebP, up to 5 MB, in a multipart/form-data field named "file". It is cropped to a centred square of up to 300×300 and encoded again as JPEG (without its metadata). */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The account, with its new avatarUrl */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No file, not a JPEG, PNG or WebP picture, or more than 5 MB */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_my_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account has no picture (now, or already had none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_mepassword_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new User resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["User.PasswordChange"];
+                "application/json": components["schemas"]["User.PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Changed: every session of the account is signed out, and a new token pair is returned, as by POST /api/auth */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["User.jsonld-user.read"];
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The current password is wrong, or the new one is too short */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_users_get_collection: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["User.jsonld-user.read"][];
+                    };
+                    "application/json": components["schemas"]["User-user.read"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new User resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["User.UserInput"];
+                "application/json": components["schemas"]["User.UserInput"];
+            };
+        };
+        responses: {
+            /** @description User resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["User.jsonld-user.read"];
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_users_id_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["User.jsonld-user.read"];
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_users_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User resource deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description An administrator cannot delete their own account */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_users_id_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated User resource */
+        requestBody: {
+            content: {
+                "application/merge-patch+json": components["schemas"]["User-user.self_user.admin.jsonMergePatch"];
+            };
+        };
+        responses: {
+            /** @description User resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["User.jsonld-user.read"];
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description It would leave the server without an administrator */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    get_user_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Account identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture (JPEG, square, at most 300 pixels a side) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description Neither a valid JWT nor a valid, unexpired signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The account does not exist or has no picture */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    upload_user_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Account identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The picture: JPEG, PNG or WebP, up to 5 MB, in a multipart/form-data field named "file". It is cropped to a centred square of up to 300×300 and encoded again as JPEG (without its metadata). */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The account, with its new avatarUrl */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User-user.read"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The account does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No file, not a JPEG, PNG or WebP picture, or more than 5 MB */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    delete_user_avatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Account identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account has no picture */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The account does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

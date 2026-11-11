@@ -1,6 +1,7 @@
 import createClient from 'openapi-fetch'
+import { ApiError, apiError } from '../api/errors'
 import type { paths } from '../api/schema'
-import { clearTokens, readTokens, secondsUntilExpiry, tokensFromResponse, writeTokens } from './tokens'
+import { clearTokens, readTokens, secondsUntilExpiry, tokensFromResponse, writeTokens, type TokenResponse } from './tokens'
 
 // Refresh tokens are single use, and presenting one that was already spent revokes the whole session. So a refresh must
 // never run twice with the same token, neither in this tab (concurrent requests) nor across tabs:
@@ -8,6 +9,7 @@ import { clearTokens, readTokens, secondsUntilExpiry, tokensFromResponse, writeT
 // - across tabs, refreshes run inside a Web Lock, and the tokens are read again once the lock is held: if another tab
 //   refreshed meanwhile, its new token is used and nothing is sent.
 // Signing out takes the same lock, so it always invalidates the current refresh token, never one a refresh just spent.
+// So does changing the password, which spends every refresh token of the account and returns a new pair.
 
 const SESSION_LOCK = 'echora.session'
 
@@ -21,10 +23,11 @@ const authApi = createClient<paths>({ baseUrl })
 
 export class InvalidCredentialsError extends Error {
   constructor() {
-    super('Wrong username or password')
+    super('Wrong email, username or password')
   }
 }
 
+/** Signs in with the email or the username of an account. */
 export async function signIn(username: string, password: string): Promise<void> {
   const { data, response } = await authApi.POST('/api/auth', { body: { username, password } })
   if (response.status === 401) {
@@ -34,6 +37,68 @@ export async function signIn(username: string, password: string): Promise<void> 
     throw new Error(`Couldn't sign in (HTTP ${response.status})`)
   }
   writeTokens(tokensFromResponse(data))
+}
+
+/**
+ * Whether the server still has no account, so its first visitor creates the administrator (GET /api/setup, public).
+ * False when it can't tell (an older API without the endpoint, or unreachable): the sign-in form is shown then.
+ */
+export async function setupRequired(): Promise<boolean> {
+  try {
+    const { data } = await authApi.GET('/api/setup')
+    return (data as { required?: boolean } | undefined)?.required === true
+  } catch {
+    return false
+  }
+}
+
+export interface SetupDetails {
+  email: string
+  name: string
+  password: string
+}
+
+/**
+ * Creates the first account of the server, its administrator, and signs in with it. Throws an ApiError: 409 when the
+ * server has an account already, 422 with the fields refused.
+ */
+export async function setUpServer(details: SetupDetails): Promise<void> {
+  const { data, error, response } = await authApi.POST('/api/setup', { body: details })
+  if (!response.ok || !data) {
+    throw apiError(response, error)
+  }
+  writeTokens(tokensFromResponse(data as unknown as TokenResponse))
+}
+
+/**
+ * Changes the password of the account signed in. The API signs the account out of every device and answers with a new
+ * pair for this one, kept for every tab. Under the session lock: a refresh running meanwhile, here or in another tab,
+ * would present a refresh token the change has just revoked, and sign the user out. Throws an ApiError (422 with the
+ * fields refused, e.g. a wrong current password).
+ */
+export function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  return withSessionLock(async () => {
+    const tokens = readTokens()
+    // The middleware can't be used: it would wait for the lock this function holds to refresh the token.
+    const token = !tokens
+      ? null
+      : secondsUntilExpiry(tokens.token) > EXPIRY_MARGIN_SECONDS
+        ? tokens.token
+        : await refreshUnlessDone(tokens.token)
+    if (!token) {
+      throw new ApiError(401, 'Signed out')
+    }
+    const { data, error, response } = await authApi.POST('/api/me/password', {
+      body: { currentPassword, newPassword },
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok || !data) {
+      throw apiError(response, error)
+    }
+    writeTokens(tokensFromResponse(data as unknown as TokenResponse))
+    // As after a refresh: the other tabs see the new pair before one of them can take the lock (see below).
+    await new Promise((resolve) => setTimeout(resolve))
+  })
 }
 
 /**

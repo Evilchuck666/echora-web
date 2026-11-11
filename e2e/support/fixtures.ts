@@ -21,12 +21,26 @@ export const test = base.extend<Fixtures>({
   signIn: async ({ page: defaultPage, api: _api }, provide) => {
     await provide(async (page = defaultPage) => {
       await page.goto('/login')
-      await page.getByLabel('Username').fill(USERNAME)
-      await page.getByLabel('Password').fill(PASSWORD)
-      await page.getByRole('button', { name: 'Sign in' }).click()
+      await fillSignIn(page, USERNAME, PASSWORD)
       await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
     })
   },
 })
+
+/** Fills the sign-in form (already shown) with an email or a username, and sends it. */
+export async function fillSignIn(page: Page, identifier: string, password: string): Promise<void> {
+  await page.getByLabel('Email or username').fill(identifier)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+}
+
+/** The header's account button: picture and name. */
+export const accountButton = (page: Page) => page.getByRole('banner').getByRole('button', { name: /^Account/ })
+
+/** Signs out from the header's account menu. */
+export async function signOut(page: Page): Promise<void> {
+  await accountButton(page).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+}
 
 export { expect }

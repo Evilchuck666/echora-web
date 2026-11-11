@@ -1,5 +1,5 @@
-import { expect, test } from '../support/fixtures.ts'
-import { PASSWORD, USERNAME } from '../support/mock-api.ts'
+import { expect, fillSignIn, signOut, test } from '../support/fixtures.ts'
+import { NAME, PASSWORD, USERNAME } from '../support/mock-api.ts'
 
 test('a signed-out visitor is sent to the login page', async ({ page, api: _api }) => {
   await page.goto('/albums/whatever')
@@ -10,17 +10,15 @@ test('a signed-out visitor is sent to the login page', async ({ page, api: _api 
 
 test('a wrong password says so', async ({ page, api: _api }) => {
   await page.goto('/login')
-  await page.getByLabel('Username').fill(USERNAME)
-  await page.getByLabel('Password').fill('wrong')
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await fillSignIn(page, USERNAME, 'wrong')
 
-  await expect(page.getByRole('alert')).toHaveText('Wrong username or password')
+  await expect(page.getByRole('alert')).toHaveText('Wrong email, username or password')
 })
 
-test('signing in shows the library and the account, and survives a reload', async ({ page, signIn }) => {
+test('signing in shows the library and the name of the account, and survives a reload', async ({ page, signIn }) => {
   await signIn()
 
-  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  await expect(page.getByRole('banner')).toContainText(NAME)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
 })
@@ -28,9 +26,7 @@ test('signing in shows the library and the account, and survives a reload', asyn
 test('after signing in, the app goes back to the page that asked for it', async ({ page, api: _api }) => {
   await page.goto('/search?q=accept')
   await expect(page).toHaveURL('/login')
-  await page.getByLabel('Username').fill(USERNAME)
-  await page.getByLabel('Password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  await fillSignIn(page, USERNAME, PASSWORD)
 
   await expect(page).toHaveURL('/search?q=accept')
 })
@@ -44,7 +40,7 @@ test('other tabs follow signing in and out', async ({ context, page, signIn, api
   await expect(other.getByRole('heading', { name: 'Artists' })).toBeVisible()
 
   const refreshToken = await page.evaluate(() => JSON.parse(localStorage.getItem('echora.session')!).refreshToken)
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page).toHaveURL('/login')
   await expect(other).toHaveURL('/login')
   expect(api.logouts).toEqual([refreshToken])
@@ -73,7 +69,7 @@ test('two tabs with an expired JWT refresh it once', async ({ context, page, sig
 test('a JWT the API rejects is refreshed and the request sent again', async ({ page, signIn, api }) => {
   await signIn()
   // Wait for every request of the sign-in (the header's account), so none of them meets the rejected JWT.
-  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  await expect(page.getByRole('banner')).toContainText(NAME)
   api.rejectAccessTokens()
 
   await page.reload()
@@ -84,7 +80,7 @@ test('a JWT the API rejects is refreshed and the request sent again', async ({ p
 
 test('a refresh whose response was lost does not sign out', async ({ page, signIn, api }) => {
   await signIn()
-  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  await expect(page.getByRole('banner')).toContainText(NAME)
   await page.evaluate(() => {
     const session = JSON.parse(localStorage.getItem('echora.session')!)
     localStorage.setItem('echora.session', JSON.stringify({ ...session, token: 'x.eyJleHAiOjB9.x' }))
@@ -95,7 +91,7 @@ test('a refresh whose response was lost does not sign out', async ({ page, signI
   await page.reload()
 
   await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
-  await expect(page.getByRole('banner')).toContainText(USERNAME)
+  await expect(page.getByRole('banner')).toContainText(NAME)
   // The spent token was presented again, and the API's grace period answered it.
   expect(api.refreshes).toHaveLength(2)
   expect(api.refreshes[0]).toBe(api.refreshes[1])
