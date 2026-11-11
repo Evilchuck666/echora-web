@@ -12,8 +12,8 @@ test.skip(!username || !password, 'Set ECHORA_E2E_USERNAME and ECHORA_E2E_PASSWO
 
 async function signIn(page: Page) {
   await page.goto('/login')
-  await page.getByLabel('Username').fill(username)
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Email or username').fill(username)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
 }
@@ -45,11 +45,27 @@ test('the search finds an artist by its name', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Artists' }).getByRole('link', { name, exact: true })).toBeVisible()
 })
 
+test('the profile shows the account signed in, and changes nothing until asked', async ({ page }) => {
+  await signIn(page)
+  const account = page.getByRole('banner').getByRole('button', { name: /^Account: / })
+  const name = ((await account.getAttribute('aria-label')) ?? '').replace(/^Account: /, '')
+
+  await account.click()
+  await page.getByRole('menuitem', { name: 'Profile' }).click()
+
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue(name)
+  // Signed in with the username or the email: one of the two fields holds it.
+  const fields = [await page.getByLabel('Username', { exact: true }).inputValue(), await page.getByLabel('Email', { exact: true }).inputValue()]
+  expect(fields.map((field) => field.toLowerCase())).toContain(username.toLowerCase())
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+})
+
 test('signing out invalidates the refresh token on the server', async ({ page, request }) => {
   await signIn(page)
   const refreshToken = await page.evaluate(() => JSON.parse(localStorage.getItem('echora.session')!).refreshToken as string)
 
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('banner').getByRole('button', { name: /^Account/ }).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(page).toHaveURL('/login')
 
   const response = await request.post(`${API}/api/token/refresh`, { data: { refresh_token: refreshToken }, ignoreHTTPSErrors: true })

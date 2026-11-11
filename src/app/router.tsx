@@ -9,11 +9,16 @@ import { FavouritesPage, FavouritesRedirect } from '../pages/FavouritesPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { PlaylistPage } from '../pages/PlaylistPage'
+import { ProfilePage } from '../pages/ProfilePage'
 import { SearchPage } from '../pages/SearchPage'
+import { SetupPage } from '../pages/SetupPage'
 import { TracksPage } from '../pages/TracksPage'
+import { UsersPage } from '../pages/UsersPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  // A new server, without accounts: its first visitor creates the administrator.
+  { path: '/setup', element: <SetupPage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -31,6 +36,9 @@ export const router = createBrowserRouter([
           { path: '/favourites/albums', element: <FavouritesPage kind="album" /> },
           { path: '/favourites/tracks', element: <FavouritesPage kind="track" /> },
           { path: '/playlists/:id', element: <PlaylistPage /> },
+          { path: '/profile', element: <ProfilePage /> },
+          // Administrators only (the page says so to anyone else, as the API does).
+          { path: '/admin/users', element: <UsersPage /> },
         ],
       },
     ],

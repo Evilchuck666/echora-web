@@ -3,8 +3,14 @@ import type { BrowserContext, Request, Route } from '@playwright/test'
 /** The origin the app calls (VITE_API_URL in .env). Every request to it is answered here, never by a server. */
 export const API = 'https://localhost'
 
+/** The account tests sign in with: an administrator. */
 export const USERNAME = 'listener'
 export const PASSWORD = 'secret'
+export const EMAIL = 'listener@example.com'
+export const NAME = 'Lee Listener'
+
+/** Another account, not an administrator. */
+export const OTHER = { username: 'robin', password: 'robin-secret', email: 'robin@example.com', name: 'Robin Reader' }
 
 /** Length of the audio every track serves, in seconds. */
 export const TRACK_SECONDS = 12
@@ -34,6 +40,17 @@ interface MockPlaylist {
   items: { id: string; trackId: string }[]
 }
 
+interface MockUser {
+  id: string
+  username: string
+  email: string | null
+  name: string
+  password: string
+  admin: boolean
+  /** Changes with every new picture (the API puts the file name in the URL); null without one. */
+  avatar: number | null
+}
+
 interface MockTrack {
   id: string
   albumId: string
@@ -48,6 +65,8 @@ export interface MockApiOptions {
   extraArtists?: number
   /** Every request for this page of /api/artists fails with a 500 this many times, then works. */
   failArtistsPage?: { page: number; times: number }
+  /** A new server, without accounts: the first visitor creates the administrator (POST /api/setup). */
+  noAccounts?: boolean
 }
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -85,8 +104,16 @@ export class MockApi {
   /** The next favourite changes answer 500, as when the API is down. */
   failFavourites = 0
 
-  private accessTokens = new Set<string>()
-  private refreshTokens = new Set<string>()
+  /** The accounts, by username (as the API lists them). */
+  readonly users: MockUser[] = []
+  /** Pictures received (multipart uploads), as "me" or the id of the account. */
+  readonly avatarUploads: string[] = []
+  private userCount = 0
+
+  /** Access token → id of its account. */
+  private accessTokens = new Map<string, string>()
+  /** Refresh token → id of its account. */
+  private refreshTokens = new Map<string, string>()
   /** Like the API's grace period: presented refresh token → the one issued for it, and when. */
   private successors = new Map<string, { token: string; at: number }>()
   private issued = 0
@@ -96,6 +123,10 @@ export class MockApi {
   constructor(options: MockApiOptions = {}) {
     this.options = options
     this.addLibrary()
+    if (!options.noAccounts) {
+      this.addUser({ username: USERNAME, password: PASSWORD, email: EMAIL, name: NAME, admin: true })
+      this.addUser({ ...OTHER, admin: false })
+    }
     if (options.failArtistsPage) {
       this.failures.set(options.failArtistsPage.page, options.failArtistsPage.times)
     }
@@ -121,6 +152,24 @@ export class MockApi {
     // As the API: a new playlist comes first.
     this.playlists.unshift(playlist)
     return playlist
+  }
+
+  /** An account made beforehand (as by an administrator, or the console). */
+  addUser(user: Omit<MockUser, 'id' | 'avatar'> & { avatar?: number | null }): MockUser {
+    const created: MockUser = { avatar: null, ...user, id: `00000000-0000-4000-a000-${String(++this.userCount).padStart(12, '0')}` }
+    this.users.push(created)
+    this.users.sort((a, b) => a.username.localeCompare(b.username))
+    return created
+  }
+
+  userNamed(username: string): MockUser {
+    return this.users.find((user) => user.username === username) ?? (() => { throw new Error(`No user ${username}`) })()
+  }
+
+  /** How many sessions (refresh tokens) of an account are open. */
+  sessionsOf(username: string): number {
+    const userId = this.userNamed(username).id
+    return [...this.refreshTokens.values()].filter((owner) => owner === userId).length
   }
 
   artistNamed(name: string): MockArtist {
@@ -250,6 +299,20 @@ export class MockApi {
     }
   }
 
+  private userJson(user: MockUser) {
+    return {
+      '@id': `/api/users/${user.id}`,
+      '@type': 'User',
+      id: user.id,
+      roles: user.admin ? ['ROLE_ADMIN', 'ROLE_USER'] : ['ROLE_USER'],
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatar === null ? null : `${this.signed(`/api/users/${user.id}/avatar`)}&file=avatar-${user.avatar}.jpg`,
+      username: user.username,
+      admin: user.admin,
+    }
+  }
+
   private signed(path: string): string {
     return `${API}${path}?_expiration=${Math.floor(Date.now() / 1000) + 6 * 3600}&_hash=mock-signature`
   }
@@ -277,8 +340,25 @@ export class MockApi {
 
     // Public endpoints.
     if (request.method() === 'POST' && path === '/api/auth') {
+      // The username or the email.
       const { username, password } = request.postDataJSON() as { username: string; password: string }
-      return username === USERNAME && password === PASSWORD ? reply(200, this.issue()) : reply(401, { code: 401, message: 'Invalid credentials.' })
+      const user = this.users.find((u) => u.username === username || (u.email !== null && u.email === username.trim().toLowerCase()))
+      return user && user.password === password ? reply(200, this.issue(user.id)) : reply(401, { code: 401, message: 'Invalid credentials.' })
+    }
+    if (path === '/api/setup' && request.method() === 'GET') {
+      return reply(200, { '@id': '/api/setup', '@type': 'Setup', required: this.users.length === 0 })
+    }
+    if (path === '/api/setup' && request.method() === 'POST') {
+      if (this.users.length > 0) {
+        return reply(409, { '@type': 'Error', title: 'An error occurred', detail: 'This server is already set up: sign in instead.', status: 409 })
+      }
+      const body = request.postDataJSON() as Record<string, unknown>
+      const refused = this.checkAccount(body, null, ['email', 'name', 'password'])
+      if (refused) {
+        return reply(422, refused)
+      }
+      const admin = this.addUser({ username: this.usernameFor(String(body.email)), email: String(body.email).trim().toLowerCase(), name: String(body.name), password: String(body.password), admin: true })
+      return reply(201, this.issue(admin.id))
     }
     if (request.method() === 'POST' && path === '/api/token/refresh') {
       const { refresh_token } = request.postDataJSON() as { refresh_token: string }
@@ -294,8 +374,9 @@ export class MockApi {
       if (!spent) {
         return reply(401, { code: 401, message: 'JWT Refresh Token Not Found' })
       }
+      const owner = this.refreshTokens.get(spent)!
       this.refreshTokens.delete(spent)
-      const issued = this.issue()
+      const issued = this.issue(owner)
       this.successors.set(refresh_token, { token: issued.refresh_token, at: Date.now() })
       if (this.loseNextRefreshResponse) {
         this.loseNextRefreshResponse = false
@@ -320,6 +401,16 @@ export class MockApi {
       }
       return route.fulfill({ status: 200, headers: { ...cors, 'Accept-Ranges': 'bytes' }, contentType: 'audio/wav', body: WAV })
     }
+    match = /^\/api\/users\/([^/]+)\/avatar$/.exec(path)
+    if (match && request.method() === 'GET') {
+      const user = this.users.find((u) => u.id === match![1])
+      if (!user || user.avatar === null) {
+        return notFound()
+      }
+      const hue = (user.avatar * 97) % 360
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="hsl(${hue} 70% 55%)"/></svg>`
+      return route.fulfill({ status: 200, headers: cors, contentType: 'image/svg+xml', body: svg })
+    }
     match = /^\/api\/(albums|artists)\/([^/]+)\/cover$/.exec(path)
     if (match) {
       const hue = (parseInt(match[2].slice(-4), 16) * 47) % 360
@@ -329,7 +420,9 @@ export class MockApi {
 
     // Everything else needs a valid JWT.
     const token = (await request.headerValue('authorization'))?.replace(/^Bearer /, '')
-    if (!token || !this.accessTokens.has(token)) {
+    // A deleted account's tokens stop working at once: the API can't load its account.
+    const me = token ? this.users.find((user) => user.id === this.accessTokens.get(token)) : undefined
+    if (!token || !me) {
       return reply(401, { code: 401, message: token ? 'Invalid JWT Token' : 'JWT Token not found' })
     }
     const page = Number(url.searchParams.get('page') ?? 1)
@@ -458,8 +551,8 @@ export class MockApi {
       return reply(200, this.collection(`/api/favourites/${kind}s`, members, page))
     }
 
-    if (path === '/api/me') {
-      return reply(200, { '@id': '/api/me', '@type': 'User', id: id(0), username: USERNAME, roles: ['ROLE_USER'] })
+    if (await this.handleAccounts(request, path, me, page, reply, () => route.fulfill({ status: 204, headers: cors }))) {
+      return
     }
     if (path === '/api/artists') {
       const remaining = this.failures.get(page) ?? 0
@@ -537,15 +630,209 @@ export class MockApi {
     }
   }
 
-  private issue() {
+  // --- Accounts ------------------------------------------------------------------------------------------------------
+
+  /**
+   * /api/me, /api/users and the pictures, with the API's rules: administrators only for /api/users, usernames made
+   * from emails, unique usernames and emails, a server never without an administrator, an administrator never
+   * deleting their own account, a new password signing the account out. False (nothing answered) for any other path.
+   */
+  private async handleAccounts(
+    request: Request,
+    path: string,
+    me: MockUser,
+    page: number,
+    reply: (status: number, body: unknown) => Promise<void>,
+    replyEmpty: () => Promise<void>,
+  ): Promise<boolean> {
+    const method = request.method()
+    const route = async (status: number, body: unknown) => {
+      await reply(status, body)
+      return true
+    }
+    const noContent = async () => {
+      await replyEmpty()
+      return true
+    }
+    const conflict = (detail: string) => route(409, { '@type': 'Error', title: 'An error occurred', detail, status: 409 })
+
+    if (path === '/api/me' && method === 'GET') {
+      return route(200, { ...this.userJson(me), '@id': '/api/me' })
+    }
+    if (path === '/api/me' && method === 'PATCH') {
+      const body = request.postDataJSON() as Record<string, unknown>
+      return this.applyPatch(me, body, ['name', 'username', 'email'], route)
+    }
+    if (path === '/api/me/password' && method === 'POST') {
+      const { currentPassword, newPassword } = request.postDataJSON() as { currentPassword?: string; newPassword?: string }
+      if (currentPassword !== me.password) {
+        return route(422, violations([['currentPassword', 'The current password is wrong.']]))
+      }
+      if (typeof newPassword !== 'string' || newPassword.length < 8) {
+        return route(422, violations([['newPassword', 'The password has at least 8 characters.']]))
+      }
+      me.password = newPassword
+      this.signOutEverywhere(me.id)
+      return route(200, this.issue(me.id))
+    }
+    let match = /^\/api\/(?:me|users\/([^/]+))\/avatar$/.exec(path)
+    if (match && (method === 'POST' || method === 'DELETE')) {
+      const target = match[1] === undefined ? me : this.users.find((u) => u.id === match![1])
+      if (match[1] !== undefined && !me.admin) {
+        return route(403, { '@type': 'Error', title: 'An error occurred', detail: 'Access Denied.', status: 403 })
+      }
+      if (!target) {
+        return route(404, { '@type': 'Error', title: 'An error occurred', detail: 'No account with this id.', status: 404 })
+      }
+      if (method === 'DELETE') {
+        target.avatar = null
+        return noContent()
+      }
+      const contentType = (await request.headerValue('content-type')) ?? ''
+      const body = request.postDataBuffer()?.toString('latin1') ?? ''
+      if (!contentType.startsWith('multipart/form-data') || !/name="file"/.test(body)) {
+        return route(422, { '@type': 'Error', title: 'An error occurred', detail: 'Send the picture as multipart/form-data, in a field named "file".', status: 422 })
+      }
+      this.avatarUploads.push(match[1] ?? 'me')
+      target.avatar = ++this.changes
+      // As the API: plain JSON, not JSON-LD.
+      const json = this.userJson(target)
+      return route(200, Object.fromEntries(Object.entries(json).filter(([key]) => !key.startsWith('@'))))
+    }
+
+    if (!path.startsWith('/api/users')) {
+      return false
+    }
+    if (!me.admin) {
+      return route(403, { '@type': 'Error', title: 'An error occurred', detail: 'Access Denied.', status: 403 })
+    }
+    if (path === '/api/users' && method === 'GET') {
+      return route(200, this.collection('/api/users', this.users.map((u) => this.userJson(u)), page))
+    }
+    if (path === '/api/users' && method === 'POST') {
+      const body = request.postDataJSON() as Record<string, unknown>
+      const refused = this.checkAccount(body, null, ['email', 'name', 'password'])
+      if (refused) {
+        return route(422, refused)
+      }
+      const user = this.addUser({
+        username: this.usernameFor(String(body.email)),
+        email: String(body.email).trim().toLowerCase(),
+        name: String(body.name),
+        password: String(body.password),
+        admin: body.admin === true,
+      })
+      return route(201, this.userJson(user))
+    }
+    match = /^\/api\/users\/([^/]+)$/.exec(path)
+    const user = match ? this.users.find((u) => u.id === match![1]) : undefined
+    if (!user) {
+      return route(404, { '@type': 'Error', title: 'An error occurred', detail: 'Not Found', status: 404 })
+    }
+    if (method === 'GET') {
+      return route(200, this.userJson(user))
+    }
+    if (method === 'PATCH') {
+      const body = request.postDataJSON() as Record<string, unknown>
+      if (body.admin === false && user.admin && this.users.filter((u) => u.admin).length === 1) {
+        return conflict('This is the last administrator: make another account an administrator first.')
+      }
+      return this.applyPatch(user, body, ['name', 'username', 'email', 'admin', 'password'], route)
+    }
+    if (method === 'DELETE') {
+      if (user.id === me.id) {
+        return conflict('An administrator cannot delete their own account: ask another administrator.')
+      }
+      this.users.splice(this.users.indexOf(user), 1)
+      this.signOutEverywhere(user.id)
+      return noContent()
+    }
+    return false
+  }
+
+  private applyPatch(user: MockUser, body: Record<string, unknown>, allowed: string[], reply: (status: number, body: unknown) => Promise<boolean>) {
+    const fields = allowed.filter((field) => body[field] !== undefined)
+    const refused = this.checkAccount(body, user, fields)
+    if (refused) {
+      return reply(422, refused)
+    }
+    if (typeof body.name === 'string') user.name = body.name
+    if (typeof body.username === 'string') user.username = body.username
+    if (typeof body.email === 'string') user.email = body.email.trim().toLowerCase()
+    if (typeof body.admin === 'boolean' && allowed.includes('admin')) user.admin = body.admin
+    if (typeof body.password === 'string' && allowed.includes('password')) {
+      user.password = body.password
+      this.signOutEverywhere(user.id)
+    }
+    this.users.sort((a, b) => a.username.localeCompare(b.username))
+    return reply(200, this.userJson(user))
+  }
+
+  /** The API's checks of an account's fields (only `fields`), or null when they pass. */
+  private checkAccount(body: Record<string, unknown>, user: MockUser | null, fields: string[]) {
+    const problems: [string, string][] = []
+    const others = this.users.filter((u) => u !== user)
+    for (const field of fields) {
+      const value = body[field]
+      if (field === 'email') {
+        const email = typeof value === 'string' ? value.trim().toLowerCase() : ''
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) problems.push(['email', 'This is not a valid email.'])
+        else if (others.some((u) => u.email === email)) problems.push(['email', 'Another account already uses this email.'])
+      } else if (field === 'name') {
+        if (typeof value !== 'string' || value.trim() === '') problems.push(['name', 'The name cannot be empty.'])
+        else if (value.trim() !== value) problems.push(['name', 'The name cannot start or end with a space.'])
+      } else if (field === 'username') {
+        if (typeof value !== 'string' || !/^[A-Za-z0-9._-]{3,32}$/.test(value)) problems.push(['username', 'Use 3 to 32 letters, digits, dots, dashes or underscores.'])
+        else if (others.some((u) => u.username === value)) problems.push(['username', 'This username is already taken.'])
+      } else if (field === 'password') {
+        if (typeof value !== 'string' || value.length < 8) problems.push(['password', 'The password has at least 8 characters.'])
+      }
+    }
+    return problems.length > 0 ? violations(problems) : null
+  }
+
+  /** As the API: the part of the email before the @, `-1` when too short, then `-2`, `-3`... when taken. */
+  private usernameFor(email: string): string {
+    let base = email.trim().toLowerCase().split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 29)
+    if (base.length < 3) {
+      base = `${base}-1`.padStart(3, 'x')
+    }
+    let candidate = base
+    for (let n = 2; this.users.some((u) => u.username === candidate); n++) {
+      candidate = `${base}-${n}`
+    }
+    return candidate
+  }
+
+  /** Every session of an account ends (new password, deleted account): its refresh tokens stop working. */
+  private signOutEverywhere(userId: string): void {
+    for (const [token, owner] of this.refreshTokens) {
+      if (owner === userId) {
+        this.refreshTokens.delete(token)
+      }
+    }
+  }
+
+  private issue(userId: string) {
     this.issued++
     const exp = Math.floor(Date.now() / 1000) + 3600
-    const payload = Buffer.from(JSON.stringify({ exp, username: USERNAME, n: this.issued })).toString('base64url')
+    const payload = Buffer.from(JSON.stringify({ exp, sub: userId, n: this.issued })).toString('base64url')
     const token = `mock.${payload}.signature`
     const refreshToken = `refresh-${this.issued}`
-    this.accessTokens.add(token)
-    this.refreshTokens.add(refreshToken)
+    this.accessTokens.set(token, userId)
+    this.refreshTokens.set(refreshToken, userId)
     return { token, refresh_token: refreshToken, refresh_token_expiration: exp + 30 * 86400 }
+  }
+}
+
+/** A ConstraintViolation (422), as API Platform answers it. */
+function violations(problems: [string, string][]) {
+  return {
+    '@type': 'ConstraintViolation',
+    title: 'An error occurred',
+    status: 422,
+    violations: problems.map(([propertyPath, message]) => ({ propertyPath, message })),
+    detail: problems.map(([field, message]) => `${field}: ${message}`).join('\n'),
   }
 }
 

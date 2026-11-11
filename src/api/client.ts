@@ -1,6 +1,9 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 import { getAccessToken, refreshAccessToken } from '../auth/session'
+import { ApiError, apiError } from './errors'
 import type { paths } from './schema'
+
+export { ApiError }
 
 // Typed client for the Echora API. The types in schema.d.ts are generated: run `bun run api:types` when the API changes.
 // JSON-LD is required for collections to include `totalItems` and the pagination links in `view`.
@@ -47,21 +50,11 @@ const authentication: Middleware = {
 
 api.use(authentication)
 
-/** An error response from the API, with the most useful message it gave. */
-export class ApiError extends Error {
-  readonly status: number
-
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-  }
-}
-
 /** Returns the data of an openapi-fetch call, or throws an ApiError: what TanStack Query's `queryFn` expects. */
 export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   const { data, error, response } = await call
   if (error !== undefined || data === undefined) {
-    throw new ApiError(response.status, errorMessage(error) ?? `Request failed (HTTP ${response.status})`)
+    throw apiError(response, error)
   }
   return data
 }
@@ -70,15 +63,7 @@ export async function unwrap<T>(call: Promise<{ data?: T; error?: unknown; respo
 export async function unwrapEmpty(call: Promise<{ error?: unknown; response: Response }>): Promise<void> {
   const { error, response } = await call
   if (error !== undefined || !response.ok) {
-    throw new ApiError(response.status, errorMessage(error) ?? `Request failed (HTTP ${response.status})`)
+    throw apiError(response, error)
   }
 }
 
-// The authenticator answers {code, message}; every other error is a JSON-LD Error with `title` and `detail`.
-function errorMessage(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null) {
-    return undefined
-  }
-  const { detail, message, title } = error as Record<string, unknown>
-  return [detail, message, title].find((text): text is string => typeof text === 'string' && text !== '')
-}

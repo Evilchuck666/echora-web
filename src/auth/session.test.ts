@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { calls, json, jwt, routes } from '../test/http'
 import { installLocks } from '../test/locks'
-import { getAccessToken, InvalidCredentialsError, refreshAccessToken, signIn, signOut } from './session'
+import { ApiError } from '../api/errors'
+import { changePassword, getAccessToken, InvalidCredentialsError, refreshAccessToken, setupRequired, setUpServer, signIn, signOut } from './session'
 import { readTokens, writeTokens } from './tokens'
 
 const inAMonth = () => Math.floor(Date.now() / 1000) + 30 * 86400
@@ -184,5 +185,120 @@ describe('signOut', () => {
     await signOut()
 
     expect(readTokens()).toBeNull()
+  })
+})
+
+describe('setting up a server', () => {
+  it('says whether the server still needs its first account', async () => {
+    routes({ 'GET /api/setup': () => json({ required: true }) })
+    expect(await setupRequired()).toBe(true)
+
+    routes({ 'GET /api/setup': () => json({ required: false }) })
+    expect(await setupRequired()).toBe(false)
+  })
+
+  it('shows the sign-in form when it cannot tell (an older API, or none)', async () => {
+    routes({ 'GET /api/setup': () => json({ title: 'Not Found' }, 404) })
+    expect(await setupRequired()).toBe(false)
+
+    vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+    expect(await setupRequired()).toBe(false)
+  })
+
+  it('signs in as the administrator it creates', async () => {
+    routes({ 'POST /api/setup': () => json({ token: 'jwt', refresh_token: 'refresh', refresh_token_expiration: 99 }, 201) })
+
+    await setUpServer({ email: 'ana@example.com', name: 'Ana', password: 'long enough' })
+
+    expect(readTokens()).toEqual({ token: 'jwt', refreshToken: 'refresh', refreshTokenExpiresAt: 99 })
+    expect(JSON.parse((await calls())[0].body)).toEqual({ email: 'ana@example.com', name: 'Ana', password: 'long enough' })
+  })
+
+  it('says what the API refused, field by field', async () => {
+    routes({
+      'POST /api/setup': () =>
+        json({ status: 422, detail: 'email: This is not a valid email.', violations: [{ propertyPath: 'email', message: 'This is not a valid email.' }] }, 422),
+    })
+
+    const error = await setUpServer({ email: 'nope', name: 'Ana', password: 'long enough' }).catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 422, violations: { email: 'This is not a valid email.' } })
+    expect(readTokens()).toBeNull()
+  })
+})
+
+describe('changePassword', () => {
+  let uninstall: () => void
+
+  beforeEach(() => {
+    uninstall = installLocks()
+  })
+
+  afterEach(() => uninstall())
+
+  it('keeps the new pair the API answers with', async () => {
+    const token = jwt(3600)
+    routes({ 'POST /api/me/password': () => json({ token: 'after', refresh_token: 'refresh-after', refresh_token_expiration: 99 }) })
+    writeTokens({ token, refreshToken: 'refresh-0', refreshTokenExpiresAt: inAMonth() })
+
+    await changePassword('old password', 'new password')
+
+    const [call] = await calls()
+    expect(call.headers.get('Authorization')).toBe(`Bearer ${token}`)
+    expect(JSON.parse(call.body)).toEqual({ currentPassword: 'old password', newPassword: 'new password' })
+    expect(readTokens()).toEqual({ token: 'after', refreshToken: 'refresh-after', refreshTokenExpiresAt: 99 })
+  })
+
+  it('holds the session lock: a refresh asked meanwhile uses the new pair, never the refresh token it revoked', async () => {
+    const endpoint = refreshEndpoint()
+    let answer!: () => void
+    const answered = new Promise<void>((resolve) => (answer = resolve))
+    routes({
+      'POST /api/token/refresh': endpoint.handler,
+      'POST /api/me/password': async () => {
+        await answered
+        return json({ token: jwt(3600, 'after'), refresh_token: 'refresh-after', refresh_token_expiration: inAMonth() })
+      },
+    })
+    const stale = jwt(120)
+    writeTokens({ token: stale, refreshToken: 'refresh-0', refreshTokenExpiresAt: inAMonth() })
+
+    const changing = changePassword('old password', 'new password')
+    // A request meets a 401 meanwhile (in this tab or another): its refresh waits for the change.
+    const refreshing = refreshAccessToken(stale)
+    answer()
+    await changing
+
+    expect(await refreshing).toBe(readTokens()?.token)
+    expect(readTokens()?.refreshToken).toBe('refresh-after')
+    expect(endpoint.spent).toEqual([])
+  })
+
+  it('refreshes a JWT about to expire first, inside the lock', async () => {
+    const endpoint = refreshEndpoint()
+    routes({
+      'POST /api/token/refresh': endpoint.handler,
+      'POST /api/me/password': () => json({ token: 'after', refresh_token: 'refresh-after', refresh_token_expiration: 99 }),
+    })
+    writeTokens({ token: jwt(30), refreshToken: 'refresh-0', refreshTokenExpiresAt: inAMonth() })
+
+    await changePassword('old password', 'new password')
+
+    const [, change] = await calls()
+    expect(endpoint.spent).toEqual(['refresh-0'])
+    expect(change.headers.get('Authorization')).toMatch(/^Bearer header\./)
+    expect(readTokens()?.refreshToken).toBe('refresh-after')
+  })
+
+  it('keeps the session when the current password is wrong', async () => {
+    routes({
+      'POST /api/me/password': () =>
+        json({ status: 422, violations: [{ propertyPath: 'currentPassword', message: 'The current password is wrong.' }] }, 422),
+    })
+    writeTokens({ token: jwt(3600), refreshToken: 'refresh-0', refreshTokenExpiresAt: inAMonth() })
+
+    await expect(changePassword('wrong', 'new password')).rejects.toMatchObject({ status: 422, violations: { currentPassword: 'The current password is wrong.' } })
+    expect(readTokens()?.refreshToken).toBe('refresh-0')
   })
 })
