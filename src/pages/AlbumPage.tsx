@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Breadcrumbs } from '../components/Breadcrumbs'
 import { Cover } from '../components/Cover'
@@ -11,6 +12,7 @@ import { useAlbum, useAlbumTracks } from '../library/queries'
 import type { Album, Track } from '../library/types'
 import { playQueue, togglePlay } from '../player/engine'
 import { NowPlayingIcon, PauseIcon, PlayIcon } from '../player/icons'
+import { LyricsDialog } from '../player/LyricsDialog'
 import { QueueMenu } from '../player/QueueMenu'
 import { selectCurrentTrack, usePlayer } from '../player/store'
 
@@ -198,6 +200,7 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
   // On compilations, each track keeps its own artist.
   const showArtist = track.artist && track.artist.id !== albumArtistId
   const nowPlaying = current && playing
+  const [readingLyrics, setReadingLyrics] = useState(false)
 
   return (
     <div
@@ -234,9 +237,15 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
         iconClassName="h-4.5 w-4.5"
       />
       {track.hasLyrics && (
-        <span title="Has lyrics" className="shrink-0 rounded border border-neutral-700 px-1.5 text-xs text-neutral-400">
+        <button
+          type="button"
+          onClick={() => setReadingLyrics(true)}
+          onDoubleClick={(event) => event.stopPropagation()}
+          aria-label={`Show the lyrics of ${track.title}`}
+          className="shrink-0 rounded border border-neutral-700 px-1.5 text-xs text-neutral-400 hover:border-neutral-500 hover:text-white"
+        >
           Lyrics
-        </span>
+        </button>
       )}
       <span className="w-12 shrink-0 text-right text-sm text-neutral-400 tabular-nums">
         {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
@@ -244,8 +253,10 @@ function TrackRow({ track, albumArtistId, current, playing, onPlay }: TrackRowPr
       <QueueMenu
         name={track.title ?? 'Unknown track'}
         tracks={() => [track]}
+        track={track}
         className={`-my-1 shrink-0 ${ON_HOVER} has-aria-expanded:opacity-100`}
       />
+      {readingLyrics && <LyricsDialog track={track} onClose={() => setReadingLyrics(false)} />}
     </div>
   )
 }

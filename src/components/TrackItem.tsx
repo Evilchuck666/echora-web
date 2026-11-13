@@ -78,7 +78,7 @@ export function TrackItem({ track, onPlay = () => playQueue([track]), before, af
       <span className="w-12 shrink-0 text-right text-sm text-neutral-400 tabular-nums">
         {typeof track.durationMs === 'number' ? formatDuration(track.durationMs) : ''}
       </span>
-      <QueueMenu name={title} tracks={() => [track]} className={`shrink-0 ${ON_HOVER} has-aria-expanded:opacity-100`} />
+      <QueueMenu name={title} tracks={() => [track]} track={track} className={`shrink-0 ${ON_HOVER} has-aria-expanded:opacity-100`} />
       {after}
     </div>
   )
