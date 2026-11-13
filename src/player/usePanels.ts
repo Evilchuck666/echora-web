@@ -96,3 +96,11 @@ export function useDockedColumn(): boolean {
   const loaded = usePlayer((state) => state.index >= 0)
   return docked && anyOpen && loaded
 }
+
+/** Whether a panel floats over the page (not in the column): Escape closes it first, then what is under it. */
+export function useFloatingPanelOpen(): boolean {
+  const docked = useDockMode()
+  const anyFloating = usePanelsStore((state) => state.floating.length > 0)
+  const loaded = usePlayer((state) => state.index >= 0)
+  return !docked && anyFloating && loaded
+}

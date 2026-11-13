@@ -5,6 +5,7 @@ import { FavouriteButton } from '../components/FavouriteButton'
 import { formatDuration } from '../library/format'
 import { AUTOPLAY_BLOCKED, cycleRepeat, next, previous, seek, seekBy, setVolume, toggleMute, togglePlay, toggleShuffle } from './engine'
 import {
+  ExpandIcon,
   LyricsIcon,
   MutedIcon,
   NextIcon,
@@ -18,6 +19,7 @@ import {
   VolumeIcon,
 } from './icons'
 import { playLibrary } from './library'
+import { NOW_PLAYING_ID, toggleNowPlaying, useNowPlaying } from './now-playing'
 import { LYRICS_PANEL_ID, LyricsPanel } from './LyricsPanel'
 import { QualityMenu } from './QualityMenu'
 import { QUEUE_PANEL_ID, QueuePanel } from './QueuePanel'
@@ -48,6 +50,7 @@ export function PlayerBar() {
   const closeLyrics = useCallback(() => close('lyrics'), [close])
   const closeQueue = useCallback(() => close('queue'), [close])
   const [startingLibrary, setStartingLibrary] = useState(false)
+  const nowPlayingOpen = useNowPlaying((state) => state.open) && track !== undefined
 
   const play = useCallback(async () => {
     if (usePlayer.getState().index >= 0) {
@@ -75,7 +78,24 @@ export function PlayerBar() {
         <MobileProgress />
         <div className="flex h-20 items-center gap-4 px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3 md:w-1/4 md:flex-none">
-            <Cover url={track?.album?.coverUrl} alt="" className="w-12 shrink-0 rounded" />
+            {/* Opens the Now playing view: the cover in large, and on narrow screens the controls the bar has no room for. */}
+            <button
+              type="button"
+              onClick={toggleNowPlaying}
+              disabled={!track}
+              aria-label="Now playing"
+              aria-expanded={nowPlayingOpen}
+              aria-controls={nowPlayingOpen ? NOW_PLAYING_ID : undefined}
+              title={track ? (nowPlayingOpen ? 'Close Now playing' : 'Open Now playing') : undefined}
+              className="group relative shrink-0 rounded disabled:cursor-default"
+            >
+              <Cover url={track?.album?.coverUrl} alt="" className="w-12 rounded" />
+              {track && (
+                <span className="absolute inset-0 hidden items-center justify-center rounded bg-black/50 group-hover:flex group-focus-visible:flex">
+                  <ExpandIcon className={`h-5 w-5 ${nowPlayingOpen ? 'rotate-180' : ''}`} />
+                </span>
+              )}
+            </button>
             <div className="min-w-0">
               {!track ? (
                 <>
@@ -203,8 +223,11 @@ export function PlayerBar() {
   )
 }
 
-/** Elapsed time, a slider to move in the track, and the length. The slider only seeks once it is let go. */
-function Progress({ disabled }: { disabled: boolean }) {
+/**
+ * Elapsed time, a slider to move in the track, and the length. The slider only seeks once it is let go. Hidden on
+ * narrow screens unless `className` says otherwise (the Now playing view has room for it).
+ */
+export function Progress({ disabled, className = 'hidden w-full max-w-xl sm:flex' }: { disabled: boolean; className?: string }) {
   const currentTime = usePlayer((state) => state.currentTime)
   const duration = usePlayer((state) => state.duration)
   const [dragging, setDragging] = useState<number | null>(null)
@@ -220,7 +243,7 @@ function Progress({ disabled }: { disabled: boolean }) {
   }
 
   return (
-    <div className="hidden w-full max-w-xl items-center gap-2 text-xs text-neutral-400 tabular-nums sm:flex">
+    <div className={`items-center gap-2 text-xs text-neutral-400 tabular-nums ${className}`}>
       <span className="w-10 text-right">{formatDuration(shown * 1000)}</span>
       <input
         type="range"
@@ -261,7 +284,7 @@ function errorHint(error: string): string | undefined {
     : undefined
 }
 
-function ShuffleButton() {
+export function ShuffleButton({ className = 'hidden sm:block' }: { className?: string }) {
   const shuffle = usePlayer((state) => state.shuffle)
 
   return (
@@ -270,7 +293,7 @@ function ShuffleButton() {
       onClick={toggleShuffle}
       aria-label="Shuffle"
       aria-pressed={shuffle}
-      className="hidden p-1 text-neutral-400 hover:text-white aria-pressed:text-violet-400 sm:block"
+      className={`p-1 text-neutral-400 hover:text-white aria-pressed:text-violet-400 ${className}`}
     >
       <ShuffleIcon className="h-4.5 w-4.5" />
     </button>
@@ -284,7 +307,7 @@ const REPEAT_LABELS: Record<RepeatMode, string> = {
 }
 
 /** Off, the whole queue, this track: each click moves to the next mode. */
-function RepeatButton() {
+export function RepeatButton({ className = 'hidden sm:block' }: { className?: string }) {
   const repeat = usePlayer((state) => state.repeat)
 
   return (
@@ -293,7 +316,7 @@ function RepeatButton() {
       onClick={cycleRepeat}
       aria-label={REPEAT_LABELS[repeat]}
       title={REPEAT_LABELS[repeat]}
-      className={`hidden p-1 hover:text-white sm:block ${repeat === 'off' ? 'text-neutral-400' : 'text-violet-400'}`}
+      className={`p-1 hover:text-white ${className} ${repeat === 'off' ? 'text-neutral-400' : 'text-violet-400'}`}
     >
       {repeat === 'one' ? <RepeatOneIcon className="h-4.5 w-4.5" /> : <RepeatIcon className="h-4.5 w-4.5" />}
     </button>

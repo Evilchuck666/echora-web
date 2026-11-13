@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link, Outlet, ScrollRestoration } from 'react-router'
+import { NowPlaying } from '../player/NowPlaying'
 import { PlayerBar } from '../player/PlayerBar'
 import { MenuIcon } from '../player/icons'
 import { useDockedColumn } from '../player/usePanels'
@@ -57,6 +58,7 @@ export function AppLayout() {
       </div>
       {/* Back and forward return to where the page was scrolled; the lists come from the query cache meanwhile. */}
       <ScrollRestoration />
+      <NowPlaying />
       <PlayerBar />
       <Toaster />
     </div>

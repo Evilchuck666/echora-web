@@ -171,3 +171,10 @@ export const HistoryIcon = ({ className }: IconProps) => (
     <path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.1.1L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3Zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12Z" />
   </svg>
 )
+
+/** A chevron pointing up: opens the Now playing view (turned over to close it). */
+export const ExpandIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41Z" />
+  </svg>
+)

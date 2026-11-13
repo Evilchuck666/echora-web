@@ -53,7 +53,7 @@ test('space pauses and resumes, arrows move in the track', async ({ page }) => {
   await page.getByRole('heading', { name: 'Killer' }).click()
 
   await page.keyboard.press(' ')
-  await expect(player(page).getByRole('button', { name: 'Play' })).toBeVisible()
+  await expect(player(page).getByRole('button', { name: 'Play', exact: true })).toBeVisible()
   const paused = await position(page).inputValue()
   await page.waitForTimeout(700)
   expect(await position(page).inputValue()).toBe(paused)
