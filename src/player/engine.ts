@@ -40,6 +40,20 @@ const RENEW_BEFORE_SECONDS = 60
 
 /** Increases on every load and stop, so an older load that is still waiting for the API gives up. */
 let loadId = 0
+/**
+ * Gapless albums: on a whole album played in order, the next track starts this long before the current one ends,
+ * about what a browser takes to start a preloaded element, so tracks that flow into each other (live and concept
+ * albums) do so without the gap the `ended` event leaves. The current one plays on to its own end: nothing is cut.
+ */
+const GAPLESS_LEAD_SECONDS = 0.1
+/** The early start is planned from this close to the end (timeupdate comes about every quarter of a second). */
+const GAPLESS_PLAN_SECONDS = 1.5
+/** HTMLMediaElement.HAVE_FUTURE_DATA: enough to start playing (as a number: not every DOM implementation has it). */
+const HAVE_FUTURE_DATA = 3
+/** The planned early start of the next track, if any. */
+let gaplessTimer: ReturnType<typeof setTimeout> | undefined
+/** The element playing out the last moments of the previous track, after a gapless start; the spare once it ends. */
+let finishing: HTMLAudioElement | null = null
 /** Whether the current load already retried with a fresh stream URL after an error. */
 let retried = false
 /** Numbers the queue entries, so the same track queued twice can be told apart. */
@@ -271,6 +285,7 @@ export function toggleMute(): void {
 /** Stops and forgets the queue (e.g. on sign-out). */
 export function stop(): void {
   loadId++
+  finishing = null
   dropPreload()
   empty(audio)
   loadedKey = null
@@ -315,7 +330,7 @@ function cue(tracks: PlayerTrack[]): void {
 
 // --- Loading -------------------------------------------------------------------------------------------------------
 
-async function load(index: number, startAt = 0): Promise<void> {
+async function load(index: number, startAt = 0, gapless = false): Promise<void> {
   const entry = getState().queue[index]
   if (!entry) {
     return
@@ -323,8 +338,9 @@ async function load(index: number, startAt = 0): Promise<void> {
   const track = entry.track
   const id = ++loadId
   retried = false
+  cancelGapless()
   if (startAt === 0 && preloaded?.key === entry.key && preloaded.url && !spare.error) {
-    await playPreloaded(index)
+    await playPreloaded(index, gapless)
     return
   }
   if (preloaded?.key === entry.key) {
@@ -401,7 +417,7 @@ async function recover(): Promise<void> {
  * Plays the track the spare element has loaded: the elements swap, and once the new one plays, the old one is emptied
  * to become the spare.
  */
-async function playPreloaded(index: number): Promise<void> {
+async function playPreloaded(index: number, gapless = false): Promise<void> {
   const id = loadId
   const key = preloaded?.key ?? null
   const previous = audio
@@ -410,11 +426,16 @@ async function playPreloaded(index: number): Promise<void> {
   // Nothing more is preloaded until the swap is over: the old element is the fallback until the new one plays.
   loadedKey = null
   preloaded = null
-  previous.pause()
+  if (gapless) {
+    // Started early: the previous track plays on to its end, a few milliseconds more.
+    letFinish(previous)
+  } else {
+    previous.pause()
+  }
 
   const track = getState().queue[index].track
   const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (track.durationMs ?? 0) / 1000
-  setState({ index, currentTime: 0, duration, buffering: audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA, error: null })
+  setState({ index, currentTime: 0, duration, buffering: audio.readyState < HAVE_FUTURE_DATA, error: null })
   updateMediaSession()
   updatePositionState()
   try {
@@ -423,6 +444,7 @@ async function playPreloaded(index: number): Promise<void> {
     if (isNotAllowed(error) && id === loadId) {
       // Some browsers (Safari) only let an element play once a click has started it, and the spare never had one:
       // the element that was playing, left as it was until now, loads the track instead, as without preloading.
+      finishing = null
       const url = audio.src
       empty(audio)
       swapElements()
@@ -436,8 +458,9 @@ async function playPreloaded(index: number): Promise<void> {
   if (id !== loadId) {
     return
   }
-  // Let go of the track that ended (unless the element was used for something else meanwhile).
-  if (previous === spare && previous.getAttribute('src') === previousSrc) {
+  // Let go of the track that ended (unless the element was used for something else meanwhile). After a gapless
+  // start, once it has played out (letFinish).
+  if (!gapless && previous === spare && previous.getAttribute('src') === previousSrc) {
     empty(previous)
   }
   loadedKey = key
@@ -467,6 +490,10 @@ function nextEntry(): QueueEntry | undefined {
  * and whenever the queue changes: what was loaded for a track that is no longer next is dropped.
  */
 function preloadNext(): void {
+  if (finishing) {
+    // The spare is still playing out the previous track (gapless): the next one is loaded once it ends.
+    return
+  }
   const entry = nextEntry()
   if (preloaded && preloaded.key !== entry?.key) {
     dropPreload()
@@ -498,8 +525,70 @@ function startPreload(key: string, url: string): void {
 }
 
 function dropPreload(): void {
+  cancelGapless()
   preloaded = null
-  empty(spare)
+  if (spare !== finishing) {
+    empty(spare)
+  }
+}
+
+// --- Gapless albums ----------------------------------------------------------------------------------------------
+
+/** The entry that follows without a gap: the next track of a whole album played in order, if it comes next. */
+function gaplessNext(): QueueEntry | undefined {
+  const { index, queue, repeat } = getState()
+  const next = queue[index + 1]
+  return repeat !== 'one' && next && inWholeAlbum(queue[index]) && inWholeAlbum(next) ? next : undefined
+}
+
+/** Near the end of a track whose next one follows without a gap, and is preloaded and ready: plans its early start. */
+function planGapless(): void {
+  const next = gaplessNext()
+  if (gaplessTimer !== undefined || audio.paused || !next) {
+    return
+  }
+  if (preloaded?.key !== next.key || !preloaded.url || spare.readyState < HAVE_FUTURE_DATA) {
+    return
+  }
+  const remaining = audio.duration - audio.currentTime
+  if (!(remaining <= GAPLESS_PLAN_SECONDS)) {
+    return
+  }
+  const current = getState().queue[getState().index].key
+  const delay = (Math.max(0, remaining - GAPLESS_LEAD_SECONDS) * 1000) / (audio.playbackRate || 1)
+  gaplessTimer = setTimeout(() => {
+    gaplessTimer = undefined
+    const { index, queue } = getState()
+    // Still the same track, playing, followed by the one preloaded.
+    if (queue[index]?.key === current && !audio.paused && gaplessNext()?.key === preloaded?.key) {
+      trackEnded()
+      void load(index + 1, 0, true)
+    }
+  }, delay)
+}
+
+function cancelGapless(): void {
+  clearTimeout(gaplessTimer)
+  gaplessTimer = undefined
+}
+
+/** The previous track plays on to its end in its element, which is then emptied to become the spare again. */
+function letFinish(element: HTMLAudioElement): void {
+  finishing = element
+  const src = element.getAttribute('src')
+  const release = () => {
+    if (finishing !== element) {
+      return
+    }
+    finishing = null
+    if (element === spare && element.getAttribute('src') === src) {
+      empty(element)
+    }
+    preloadNext()
+  }
+  element.addEventListener('ended', release, { once: true })
+  // In case it never says it ended.
+  setTimeout(release, (GAPLESS_PLAN_SECONDS + 1) * 1000)
 }
 
 /** Stops an element and lets go of what it downloaded. */
@@ -569,6 +658,7 @@ function createAudio(role: 'current' | 'next'): HTMLAudioElement {
   on('timeupdate', () => {
     setState({ currentTime: audio.currentTime })
     preloadNext()
+    planGapless()
   })
   on('durationchange', () => {
     if (Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -581,12 +671,14 @@ function createAudio(role: 'current' | 'next'): HTMLAudioElement {
     announcePlaying()
   })
   on('pause', () => {
+    cancelGapless()
     setState({ playing: false })
     saveNow()
   })
   on('waiting', () => setState({ buffering: true }))
   on('playing', () => setState({ buffering: false, error: null }))
   on('canplay', () => setState({ buffering: false }))
+  on('seeking', cancelGapless)
   on('seeked', updatePositionState)
   on('error', () => void recover())
   on('ended', onEnded)
@@ -629,9 +721,14 @@ function applyVolume(): void {
 
 /** The ReplayGain factor of an entry: album gain when its album plays whole and in order (Play on the album's page). */
 function levelOf(entry: QueueEntry | undefined): number {
-  const { leveling, origin, shuffle } = getState()
+  return gainFactor(entry?.track, getState().leveling, inWholeAlbum(entry))
+}
+
+/** Whether an entry belongs to an album played whole and in order: Play on the album's page, shuffle off. */
+function inWholeAlbum(entry: QueueEntry | undefined): boolean {
+  const { origin, shuffle } = getState()
   const album = origin?.startsWith('album:') ? origin.slice('album:'.length) : null
-  return gainFactor(entry?.track, leveling, !shuffle && album !== null && entry?.track.album?.id === album)
+  return !shuffle && album !== null && entry?.track.album?.id === album
 }
 applyVolume()
 usePlayer.subscribe((state, previousState) => {

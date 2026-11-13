@@ -87,6 +87,7 @@ beforeEach(() => {
   // Back to happy-dom's own (unknown) duration: the elements are the same from test to test.
   for (const element of created) {
     delete (element as { duration?: number }).duration
+    delete (element as { readyState?: number }).readyState
     element.currentTime = 0
   }
 })
@@ -691,6 +692,73 @@ describe('volume', () => {
 
     toggleMute()
     expect(audio().muted).toBe(true)
+  })
+})
+
+describe('gapless albums', () => {
+  /** The spare element has enough of the next track to play it at once. */
+  const ready = () => Object.defineProperty(spare(), 'readyState', { value: 4, configurable: true })
+
+  it('on a whole album, starts the next track just before the end, and lets the current one play out', async () => {
+    playQueue(album, { origin: 'album:album' })
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    const first = audio()
+    playAt(151)
+    expect(spare().src).toBe(album[1].streamUrl)
+    ready()
+
+    playAt(179.98)
+
+    await vi.waitFor(() => expect(currentId()).toBe('2'))
+    expect(audio()).not.toBe(first)
+    // Not cut: it plays on to its end, then is emptied for the track after.
+    expect(first.getAttribute('src')).not.toBeNull()
+    first.dispatchEvent(new Event('ended'))
+    expect(first.getAttribute('src')).toBeNull()
+    // Its end, heard by the old element, doesn't move the queue on again.
+    expect(currentId()).toBe('2')
+  })
+
+  /** Near the end of the first track, with the second preloaded; whether it is ready to play at once. */
+  async function nearTheEnd(next: 'ready' | 'loading') {
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(151)
+    if (next === 'ready') {
+      ready()
+    }
+    playAt(179.98)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+
+  it("doesn't start early outside a whole album", async () => {
+    playQueue(album)
+    await nearTheEnd('ready')
+    expect(currentId()).toBe('1')
+  })
+
+  it("doesn't start early in shuffle", async () => {
+    usePlayer.setState({ shuffle: true })
+    playQueue(album, { origin: 'album:album', startIndex: 0 })
+    await nearTheEnd('ready')
+    expect(usePlayer.getState().index).toBe(0)
+  })
+
+  it("doesn't start early when the next track isn't ready: it plays when this one ends, as usual", async () => {
+    playQueue(album, { origin: 'album:album' })
+    await nearTheEnd('loading')
+    expect(currentId()).toBe('1')
+  })
+
+  it('a pause or a seek near the end cancels the early start', async () => {
+    playQueue(album, { origin: 'album:album' })
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    playAt(151)
+    ready()
+    playAt(179)
+
+    audio().dispatchEvent(new Event('seeking'))
+    await new Promise((resolve) => setTimeout(resolve, 1100))
+    expect(currentId()).toBe('1')
   })
 })
 

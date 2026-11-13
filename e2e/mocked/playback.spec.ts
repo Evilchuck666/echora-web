@@ -22,12 +22,17 @@ test.beforeEach(async ({ page, signIn }) => {
   // The engine's audio elements aren't in the page: keep a hand on them.
   await page.addInitScript(() => {
     const elements: HTMLAudioElement[] = []
-    Object.assign(window, { audioElements: elements })
+    // When each element starts playing a track and when it plays one to its end, by the element's index.
+    const events: { element: number; type: string; src: string; at: number }[] = []
+    Object.assign(window, { audioElements: elements, audioEvents: events })
     const Original = window.Audio
     window.Audio = class extends Original {
       constructor(src?: string) {
         super(src)
         elements.push(this)
+        for (const type of ['playing', 'ended']) {
+          this.addEventListener(type, () => events.push({ element: elements.indexOf(this), type, src: this.src, at: performance.now() }))
+        }
       }
     } as typeof Audio
   })
@@ -169,4 +174,35 @@ test('volume leveling lowers each track by its ReplayGain: the album gain for a 
   // Remembered, and a track without tags plays as it is.
   await page.reload()
   await expect(player(page).getByRole('button', { name: /^Audio quality:/ })).toHaveAccessibleName('Audio quality: Original. Volume leveling: Off')
+})
+
+/** When the second track of a queue started, and when the first one ended, from the audio elements' own events. */
+async function transition(page: Page, first: string, second: string) {
+  const events = await page.evaluate(() => (window as unknown as { audioEvents: { type: string; src: string; at: number }[] }).audioEvents)
+  const started = events.find((event) => event.type === 'playing' && event.src.includes(second))!.at
+  const ended = events.find((event) => event.type === 'ended' && event.src.includes(first))!.at
+  return { started, ended }
+}
+
+test('a whole album plays without gaps: the next track starts before the current one has ended', async ({ page, api }) => {
+  const [first, second] = api.tracks.filter((track) => track.albumId === api.albumTitled('Killer').id)
+  await playAlbum(page, 'Killer')
+
+  await expect(nowPlaying(page)).toHaveText('Be My Lover', { timeout: 20_000 })
+  await expect.poll(() => page.evaluate(() => (window as unknown as { audioEvents: { type: string }[] }).audioEvents.some((event) => event.type === 'ended'))).toBe(true)
+
+  const { started, ended } = await transition(page, first.id, second.id)
+  expect(started).toBeLessThan(ended)
+})
+
+test('other queues move on when a track ends, as before', async ({ page, api }) => {
+  const [first, second] = api.tracks.filter((track) => track.albumId === api.albumTitled('Killer').id)
+  await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Tracks' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Play Under My Wheels' }).click()
+
+  await expect(nowPlaying(page)).toHaveText('Be My Lover', { timeout: 20_000 })
+  await expect.poll(async () => (await page.evaluate(() => (window as unknown as { audioEvents: { type: string }[] }).audioEvents)).filter((event) => event.type === 'playing').length).toBeGreaterThanOrEqual(2)
+
+  const { started, ended } = await transition(page, first.id, second.id)
+  expect(started).toBeGreaterThanOrEqual(ended)
 })
