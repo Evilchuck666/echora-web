@@ -26,7 +26,8 @@ test('browse to an album and play it', async ({ page }) => {
   await artists.first().click()
   const albums = page.getByRole('main').getByRole('list').getByRole('link')
   await albums.first().click()
-  await expect(page.getByText('ALBUM')).toBeVisible()
+  // The album page's label (shown in capitals); not the sidebar's Albums, nor the artist's "2 albums".
+  await expect(page.getByRole('main').getByText('Album', { exact: true })).toBeVisible()
 
   await page.getByRole('main').getByRole('button', { name: 'Play', exact: true }).click()
   const player = page.getByRole('region', { name: 'Player' })
