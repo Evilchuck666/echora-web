@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch'
-import { ApiError, apiError } from '../api/errors'
+import { ApiError, apiError, errorMessage } from '../api/errors'
 import type { paths } from '../api/schema'
 import { clearTokens, readTokens, secondsUntilExpiry, tokensFromResponse, writeTokens, type TokenResponse } from './tokens'
 
@@ -27,11 +27,21 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
+/**
+ * Too many failed sign-ins (5 for an account from one address, or 25 from one address, in 15 minutes): the API refuses
+ * every attempt for a while, even with the right password. Its message says how long.
+ */
+export class TooManyAttemptsError extends Error {}
+
 /** Signs in with the email or the username of an account. */
 export async function signIn(username: string, password: string): Promise<void> {
-  const { data, response } = await authApi.POST('/api/auth', { body: { username, password } })
+  const { data, error, response } = await authApi.POST('/api/auth', { body: { username, password } })
   if (response.status === 401) {
     throw new InvalidCredentialsError()
+  }
+  if (response.status === 429) {
+    // Retry-After isn't readable from another origin (CORS), but the message says the minutes too.
+    throw new TooManyAttemptsError(errorMessage(error) ?? 'Too many failed sign-in attempts: try again later.')
   }
   if (!data) {
     throw new Error(`Couldn't sign in (HTTP ${response.status})`)

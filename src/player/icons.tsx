@@ -164,3 +164,10 @@ export const TracksIcon = ({ className }: IconProps) => (
     <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
   </svg>
 )
+
+/** A clock with an arrow going back: the listening history. */
+export const HistoryIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.1.1L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3Zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12Z" />
+  </svg>
+)

@@ -1,9 +1,10 @@
 import { useEffect, type ReactNode } from 'react'
-import { Navigate, NavLink } from 'react-router'
+import { Navigate } from 'react-router'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { AlbumCard, ArtistCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
+import { Tab, Tabs } from '../components/Tabs'
 import { TrackItem } from '../components/TrackItem'
 import { plural } from '../library/format'
 import { useFavouriteAlbums, useFavouriteArtists, useFavouriteTracks, type FavouriteKind } from '../library/favourites'
@@ -49,26 +50,14 @@ export function FavouritesPage({ kind }: { kind: FavouriteKind }) {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <h1 className="text-3xl font-semibold tracking-tight">Favourites</h1>
-      <nav aria-label="Favourites" className="mt-4 mb-6 flex gap-2">
+      <Tabs label="Favourites">
         {/* In the sidebar's order. */}
         <Tab to="/favourites/artists">Artists</Tab>
         <Tab to="/favourites/albums">Albums</Tab>
         <Tab to="/favourites/tracks">Tracks</Tab>
-      </nav>
+      </Tabs>
       {kind === 'track' ? <FavouriteTracks /> : kind === 'album' ? <FavouriteAlbums /> : <FavouriteArtists />}
     </main>
-  )
-}
-
-function Tab({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <NavLink
-      to={to}
-      end
-      className="rounded-full border border-neutral-700 px-4 py-1.5 text-sm text-neutral-300 hover:border-neutral-500 hover:text-white aria-[current=page]:border-neutral-100 aria-[current=page]:bg-neutral-100 aria-[current=page]:text-neutral-950"
-    >
-      {children}
-    </NavLink>
   )
 }
 

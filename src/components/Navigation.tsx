@@ -16,7 +16,7 @@ import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { createPlaylist, movePlaylist, usePlaylists } from '../library/playlists'
 import type { Playlist } from '../library/types'
-import { AlbumsIcon, ArtistsIcon, DragHandleIcon, HeartIcon, PlaylistIcon, PlusIcon, TracksIcon } from '../player/icons'
+import { AlbumsIcon, ArtistsIcon, DragHandleIcon, HeartIcon, HistoryIcon, PlaylistIcon, PlusIcon, TracksIcon } from '../player/icons'
 import { showToast } from './toast'
 import { InfiniteScrollTrigger } from './InfiniteScrollTrigger'
 import { PlaylistNameDialog } from './PlaylistDialogs'
@@ -60,6 +60,9 @@ export function Navigation() {
           </NavItem>
           <NavItem to="/favourites" icon={<HeartIcon />}>
             Favourites
+          </NavItem>
+          <NavItem to="/history" icon={<HistoryIcon />}>
+            History
           </NavItem>
         </ul>
       </nav>

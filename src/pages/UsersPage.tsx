@@ -16,7 +16,7 @@ import { ActionsMenu, type MenuAction } from '../components/ActionsMenu'
 import { Avatar } from '../components/Avatar'
 import { AvatarPicker } from '../components/AvatarPicker'
 import { Dialog } from '../components/Dialog'
-import { focusFirstInvalid, formErrors, NO_ERRORS, type FormErrors } from '../components/form-errors'
+import { formErrors, NO_ERRORS, useFocusOnErrors, type FormErrors } from '../components/form-errors'
 import { Field, FormError, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/forms'
 import { InfiniteScrollTrigger } from '../components/InfiniteScrollTrigger'
 import { QueryError } from '../components/QueryError'
@@ -157,6 +157,7 @@ function DialogButtons({ onClose, submitLabel, busy, danger = false }: { onClose
 function useDialogForm(fields: string[]) {
   const form = useRef<HTMLFormElement>(null)
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
+  useFocusOnErrors(form, errors)
   const [busy, setBusy] = useState(false)
 
   async function send(run: () => Promise<void>) {
@@ -167,7 +168,6 @@ function useDialogForm(fields: string[]) {
     } catch (error) {
       setErrors(formErrors(error, fields, OFFLINE))
       setBusy(false)
-      focusFirstInvalid(form.current)
     }
   }
 

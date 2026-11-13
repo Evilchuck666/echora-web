@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, type Location } from 'react-router'
-import { InvalidCredentialsError, setupRequired, signIn } from '../auth/session'
+import { InvalidCredentialsError, setupRequired, signIn, TooManyAttemptsError } from '../auth/session'
 import { useSession } from '../auth/tokens'
 import { Field, PRIMARY_BUTTON } from '../components/forms'
 import { Spinner } from '../components/Spinner'
@@ -69,7 +69,7 @@ export function LoginPage() {
 
         {login.error && (
           <p role="alert" className="text-sm text-red-400">
-            {login.error instanceof InvalidCredentialsError
+            {login.error instanceof InvalidCredentialsError || login.error instanceof TooManyAttemptsError
               ? login.error.message
               : "Couldn't reach the server. Is the Echora API running?"}
           </p>

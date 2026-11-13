@@ -5,7 +5,7 @@ import { MAX_NAME, MIN_PASSWORD } from '../account/accounts'
 import { ApiError } from '../api/client'
 import { setupRequired, setUpServer } from '../auth/session'
 import { useSession } from '../auth/tokens'
-import { focusFirstInvalid, formErrors, NO_ERRORS, type FormErrors } from '../components/form-errors'
+import { formErrors, NO_ERRORS, useFocusOnErrors, type FormErrors } from '../components/form-errors'
 import { Field, FormError, PRIMARY_BUTTON } from '../components/forms'
 import { Spinner } from '../components/Spinner'
 import type { LoginState } from './LoginPage'
@@ -25,6 +25,7 @@ export function SetupPage() {
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
+  useFocusOnErrors(form, errors)
   const [saving, setSaving] = useState(false)
   const setup = useQuery({ queryKey: ['setup'], queryFn: setupRequired, enabled: !signedIn, gcTime: 0, retry: false })
 
@@ -46,7 +47,6 @@ export function SetupPage() {
     event.preventDefault()
     if (password !== repeat) {
       setErrors({ fields: { repeat: 'The passwords are not the same.' }, form: null })
-      focusFirstInvalid(form.current)
       return
     }
     setSaving(true)
@@ -62,7 +62,6 @@ export function SetupPage() {
         return
       }
       setErrors(formErrors(error, ['email', 'name', 'password'], "Couldn't reach the server. Is the Echora API running?"))
-      focusFirstInvalid(form.current)
     }
   }
 

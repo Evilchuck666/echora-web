@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { ReplayGain } from './replaygain'
 
 /** What the player needs of a track: tracks from an album's list and from the search both fit. */
 export interface PlayerTrack {
@@ -14,6 +15,8 @@ export interface PlayerTrack {
   format?: string
   /** Whether GET /api/tracks/{id} has lyrics for it (the lyrics panel). */
   hasLyrics?: boolean
+  /** The file's ReplayGain tags, when it has any (volume leveling, see replaygain.ts). */
+  replayGain?: ReplayGain
   /** Whether it was one of the user's favourites when it was queued (the heart in the bar; changes win, see favourites.ts). */
   favourite?: boolean
   artist?: { id?: string; name?: string }
@@ -31,6 +34,12 @@ export interface QueueEntry {
  * of the size; MP3 tracks are already small and play as they are.
  */
 export type Quality = 'original' | 'data-saver'
+
+/**
+ * Volume leveling with ReplayGain tags. Off: tracks play as they are. Track: each at the same loudness. Auto: a whole
+ * album played in order keeps its own dynamics (album gain), anything else is levelled track by track.
+ */
+export type Leveling = 'off' | 'track' | 'auto'
 
 /** Off: stop after the last track. All: start the queue again. One: play the current track again. */
 export type RepeatMode = 'off' | 'all' | 'one'
@@ -57,6 +66,7 @@ export interface PlayerState {
   shuffle: boolean
   repeat: RepeatMode
   quality: Quality
+  leveling: Leveling
   error: string | null
 }
 
@@ -67,7 +77,7 @@ function defaultQuality(): Quality {
 
 /**
  * The player's state. Only the engine (engine.ts) writes it, mirroring the audio element; components read it and
- * call the engine's controls. The volume, shuffle, repeat and quality are remembered between visits here; the queue
+ * call the engine's controls. The volume, shuffle, repeat, quality and leveling are remembered between visits here; the queue
  * and the position are too, by the engine (saved-queue.ts).
  */
 export const usePlayer = create<PlayerState>()(
@@ -86,11 +96,12 @@ export const usePlayer = create<PlayerState>()(
       shuffle: false,
       repeat: 'off',
       quality: defaultQuality(),
+      leveling: 'auto',
       error: null,
     }),
     {
       name: 'echora.player',
-      partialize: ({ volume, muted, shuffle, repeat, quality }) => ({ volume, muted, shuffle, repeat, quality }),
+      partialize: ({ volume, muted, shuffle, repeat, quality, leveling }) => ({ volume, muted, shuffle, repeat, quality, leveling }),
     },
   ),
 )

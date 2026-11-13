@@ -51,6 +51,21 @@ interface MockUser {
   avatar: number | null
 }
 
+interface MockScan {
+  id: string
+  full: boolean
+  trigger: 'api' | 'console' | 'schedule'
+  status: 'queued' | 'running' | 'finished' | 'failed'
+  /** How many times the latest scan was read while it ran: its progress, step by step. */
+  step: number
+  requestedAt: string
+  startedAt: string | null
+  finishedAt: string | null
+}
+
+/** The API's throttling: 5 failures in 15 minutes, then 429 for a while, even with the right password. */
+const MAX_FAILURES = 5
+
 interface MockTrack {
   id: string
   albumId: string
@@ -103,6 +118,14 @@ export class MockApi {
   readonly transcodes: { device: string; tracks: string[] }[] = []
   /** The next favourite changes answer 500, as when the API is down. */
   failFavourites = 0
+
+  /** Plays reported (POST /api/tracks/{id}/plays), with the account and when, in the order received. */
+  readonly plays: { userId: string; trackId: string; at: number }[] = []
+  /** Library scans, the latest first. Each GET of the latest one moves a queued or running scan on (see scanStep). */
+  readonly scans: MockScan[] = []
+  /** Failed sign-ins by identifier typed, and wrong current passwords by account (the API's throttling). */
+  private failedSignIns = new Map<string, number>()
+  private wrongPasswords = new Map<string, number>()
 
   /** The accounts, by username (as the API lists them). */
   readonly users: MockUser[] = []
@@ -258,6 +281,8 @@ export class MockApi {
       opusStreamUrl: flac ? this.signed(`/api/tracks/${track.id}/stream/opus`) : null,
       hasLyrics: track.hasLyrics,
       favourite: this.favourites.track.includes(track.id),
+      // Killer's files have ReplayGain tags (track and album), the rest none.
+      ...(album.title === 'Killer' ? { replayGain: { trackGain: -6 - track.trackNumber, trackPeak: 0.98, albumGain: -4, albumPeak: 0.99 } } : {}),
     }
   }
 
@@ -343,7 +368,16 @@ export class MockApi {
       // The username or the email.
       const { username, password } = request.postDataJSON() as { username: string; password: string }
       const user = this.users.find((u) => u.username === username || (u.email !== null && u.email === username.trim().toLowerCase()))
-      return user && user.password === password ? reply(200, this.issue(user.id)) : reply(401, { code: 401, message: 'Invalid credentials.' })
+      const failures = this.failedSignIns.get(username) ?? 0
+      if (failures >= MAX_FAILURES) {
+        return reply(429, { code: 429, message: 'Too many failed sign-in attempts: try again in 15 minutes.' })
+      }
+      if (user && user.password === password) {
+        this.failedSignIns.delete(username)
+        return reply(200, this.issue(user.id))
+      }
+      this.failedSignIns.set(username, failures + 1)
+      return reply(401, { code: 401, message: 'Invalid credentials.' })
     }
     if (path === '/api/setup' && request.method() === 'GET') {
       return reply(200, { '@id': '/api/setup', '@type': 'Setup', required: this.users.length === 0 })
@@ -665,7 +699,12 @@ export class MockApi {
     }
     if (path === '/api/me/password' && method === 'POST') {
       const { currentPassword, newPassword } = request.postDataJSON() as { currentPassword?: string; newPassword?: string }
+      const wrong = this.wrongPasswords.get(me.id) ?? 0
+      if (wrong >= MAX_FAILURES) {
+        return route(429, { '@type': 'Error', title: 'An error occurred', detail: 'Too many wrong passwords: try again in 15 minutes.', status: 429 })
+      }
       if (currentPassword !== me.password) {
+        this.wrongPasswords.set(me.id, wrong + 1)
         return route(422, violations([['currentPassword', 'The current password is wrong.']]))
       }
       if (typeof newPassword !== 'string' || newPassword.length < 8) {
@@ -698,6 +737,71 @@ export class MockApi {
       // As the API: plain JSON, not JSON-LD.
       const json = this.userJson(target)
       return route(200, Object.fromEntries(Object.entries(json).filter(([key]) => !key.startsWith('@'))))
+    }
+
+    // Listening history: per account; a play of the same track within 30 seconds of another counts once.
+    let played = /^\/api\/tracks\/([^/]+)\/plays$/.exec(path)
+    if (played && method === 'POST') {
+      const track = this.tracks.find((t) => t.id === played![1])
+      if (!track) {
+        return route(404, { '@type': 'Error', title: 'An error occurred', detail: 'Not Found', status: 404 })
+      }
+      const body = (request.postDataJSON() ?? {}) as { playedAt?: string }
+      const at = body.playedAt ? Date.parse(body.playedAt) : Date.now()
+      if (!this.plays.some((p) => p.userId === me.id && p.trackId === track.id && Math.abs(p.at - at) < 30_000)) {
+        this.plays.push({ userId: me.id, trackId: track.id, at })
+      }
+      return noContent()
+    }
+    played = /^\/api\/me\/(recent|top)-tracks$/.exec(path)
+    if (played && method === 'GET') {
+      const days = { week: 7, month: 30, year: 365, all: Infinity }[new URL(request.url()).searchParams.get('period') ?? 'all'] ?? Infinity
+      const top = played[1] === 'top'
+      const mine = this.plays.filter((p) => p.userId === me.id && (!top || Date.now() - p.at < days * 86_400_000))
+      const byTrack = new Map<string, { count: number; last: number }>()
+      for (const play of mine) {
+        const entry = byTrack.get(play.trackId) ?? { count: 0, last: 0 }
+        byTrack.set(play.trackId, { count: entry.count + 1, last: Math.max(entry.last, play.at) })
+      }
+      const items = [...byTrack.entries()]
+        .sort(([, a], [, b]) => (top ? b.count - a.count || b.last - a.last : b.last - a.last))
+        .map(([trackId, { count, last }]) => ({
+          '@type': 'PlayedTrack',
+          track: this.trackJson(this.tracks.find((t) => t.id === trackId)!),
+          playCount: count,
+          lastPlayedAt: new Date(last).toISOString(),
+        }))
+      return route(200, this.collection(path, items, page))
+    }
+    if (path === '/api/me/history' && method === 'DELETE') {
+      this.plays.splice(0, this.plays.length, ...this.plays.filter((p) => p.userId !== me.id))
+      return noContent()
+    }
+
+    // Library scans: administrators only, one at a time.
+    if (path.startsWith('/api/library/scan')) {
+      if (!me.admin) {
+        return route(403, { '@type': 'Error', title: 'An error occurred', detail: 'Access Denied.', status: 403 })
+      }
+      if (path === '/api/library/scan' && method === 'POST') {
+        if (this.scans.some((scan) => scan.status === 'queued' || scan.status === 'running')) {
+          return route(409, { '@type': 'Error', title: 'An error occurred', detail: 'A scan is already queued or running: wait for it to finish.', status: 409 })
+        }
+        const body = (request.postDataJSON() ?? {}) as { full?: boolean }
+        const scan = this.addScan({ full: body.full === true })
+        return route(202, this.scanJson(scan))
+      }
+      if (path === '/api/library/scan' && method === 'GET') {
+        const latest = this.scans[0]
+        if (!latest) {
+          return route(404, { '@type': 'Error', title: 'An error occurred', detail: 'Not Found', status: 404 })
+        }
+        this.scanStep(latest)
+        return route(200, this.scanJson(latest))
+      }
+      if (path === '/api/library/scans' && method === 'GET') {
+        return route(200, this.collection('/api/library/scans', this.scans.map((scan) => this.scanJson(scan)), page))
+      }
     }
 
     if (!path.startsWith('/api/users')) {
@@ -789,6 +893,78 @@ export class MockApi {
       }
     }
     return problems.length > 0 ? violations(problems) : null
+  }
+
+  /** A scan, queued (or already over, for the ones made beforehand by a test). It comes first, as the latest. */
+  addScan(scan: Partial<MockScan> = {}): MockScan {
+    const created: MockScan = {
+      id: `00000000-0000-4000-b000-${String(this.scans.length + 1).padStart(12, '0')}`,
+      full: false,
+      trigger: 'api',
+      status: 'queued',
+      step: 0,
+      requestedAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+      ...scan,
+    }
+    this.scans.unshift(created)
+    return created
+  }
+
+  /**
+   * Moves a scan on each time it is read, as the API's worker would meanwhile: queued, then running through its
+   * phases (listing, 2 of 5 files, the covers, the artist images), then finished, having found a new artist, Saxon.
+   */
+  private scanStep(scan: MockScan): void {
+    if (scan.status !== 'queued' && scan.status !== 'running') {
+      return
+    }
+    scan.step++
+    if (scan.step === 1) {
+      scan.status = 'running'
+      scan.startedAt = new Date().toISOString()
+    } else if (scan.step >= 5) {
+      scan.status = 'finished'
+      scan.finishedAt = new Date().toISOString()
+      if (!this.artists.some((artist) => artist.name === 'Saxon')) {
+        this.artists.push({ id: id(900), name: 'Saxon', image: false })
+        this.artists.sort((a, b) => a.name.localeCompare(b.name))
+      }
+    }
+  }
+
+  private scanJson(scan: MockScan) {
+    const phases = [null, ['listing', 0, 0], ['files', 2, 5], ['covers', 1, 4], ['artist_images', 3, 4]] as const
+    const progress = scan.status === 'running' ? phases[scan.step] : null
+    const finished = scan.status === 'finished'
+    return {
+      '@id': `/api/library/scans/${scan.id}`,
+      '@type': 'LibraryScan',
+      id: scan.id,
+      status: scan.status,
+      requestedAt: scan.requestedAt,
+      startedAt: scan.startedAt,
+      finishedAt: scan.finishedAt,
+      phase: progress ? progress[0] : null,
+      phaseDone: progress ? progress[1] : null,
+      phaseTotal: progress ? progress[2] : null,
+      added: finished ? 1 : null,
+      moved: finished ? 0 : null,
+      updated: finished ? 0 : null,
+      unchanged: finished ? 14 : null,
+      removed: finished ? 0 : null,
+      failed: finished ? 1 : null,
+      failures: finished ? { 'Saxon/Broken/01 Noise.flac': 'Not a FLAC file' } : {},
+      coversUpdated: finished ? 1 : null,
+      coversDownloaded: finished ? 0 : null,
+      artistImagesUpdated: finished ? 0 : null,
+      artistImagesDownloaded: finished ? 0 : null,
+      theAudioDbFailure: null,
+      error: scan.status === 'failed' ? 'The music folder is not mounted.' : null,
+      full: scan.full,
+      trigger: scan.trigger,
+    }
   }
 
   /** As the API: the part of the email before the @, `-1` when too short, then `-2`, `-3`... when taken. */

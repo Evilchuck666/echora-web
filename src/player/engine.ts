@@ -1,9 +1,12 @@
 import { api } from '../api/client'
 import { useSession } from '../auth/tokens'
+// Tells the API which tracks were listened to (the history); it watches the store, and hears from onEnded.
+import { trackEnded } from './plays'
+import { gainFactor } from './replaygain'
 import { clearSavedQueue, readSavedQueue, writeSavedQueue } from './saved-queue'
 // Asks the API to convert the next tracks to Opus ahead of time; it watches the store on its own.
 import './transcodes'
-import { usePlayer, type PlayerState, type PlayerTrack, type Quality, type QueueEntry, type RepeatMode } from './store'
+import { usePlayer, type Leveling, type PlayerState, type PlayerTrack, type Quality, type QueueEntry, type RepeatMode } from './store'
 
 // The audio of the app lives outside React, so the music goes on while pages change. Two audio elements: `audio`
 // plays, and `spare` loads the next track during the end of the current one, then they swap, so the next track
@@ -249,6 +252,11 @@ export function seekBy(seconds: number): void {
   seek(audio.currentTime + seconds)
 }
 
+/** Volume leveling with ReplayGain: off, track by track, or album by album when an album plays whole. Remembered. */
+export function setLeveling(leveling: Leveling): void {
+  setState({ leveling })
+}
+
 export function setVolume(volume: number): void {
   const clamped = Math.min(Math.max(volume, 0), 1)
   setState({ volume: clamped, muted: clamped === 0 })
@@ -485,6 +493,8 @@ function preloadNext(): void {
 function startPreload(key: string, url: string): void {
   preloaded = { key, url }
   spare.src = url
+  // At its own level from its first sample, once it takes over.
+  applyVolume()
 }
 
 function dropPreload(): void {
@@ -524,7 +534,9 @@ async function freshStreamUrl(index: number): Promise<string | undefined> {
     }
     // The album's cover URL is renewed too: a queue kept from an earlier visit may hold one a day old.
     const album = entry.track.album && data.album ? { ...entry.track.album, coverUrl: data.album.coverUrl ?? null } : entry.track.album
-    const track = { ...entry.track, streamUrl: data.streamUrl, opusStreamUrl: data.opusStreamUrl ?? null, album }
+    // And the ReplayGain tags, which a full scan may have read since the track was queued.
+    const replayGain = data.replayGain ?? entry.track.replayGain
+    const track = { ...entry.track, streamUrl: data.streamUrl, opusStreamUrl: data.opusStreamUrl ?? null, album, replayGain }
     const renew = (queued: QueueEntry) => (queued.key === entry.key ? { ...queued, track } : queued)
     setState((state) => ({ queue: state.queue.map(renew), unshuffled: state.unshuffled.map(renew) }))
     return urlFor(track)
@@ -588,6 +600,7 @@ function createAudio(role: 'current' | 'next'): HTMLAudioElement {
 }
 
 function onEnded(): void {
+  trackEnded()
   const { index, queue, repeat } = getState()
   if (repeat === 'one') {
     audio.currentTime = 0
@@ -603,13 +616,22 @@ function onEnded(): void {
   }
 }
 
-// Store → audio element: the volume, remembered between visits.
+// Store → audio elements: the volume, remembered between visits, levelled by each track's ReplayGain (replaygain.ts):
+// the playing element at the current track's level, the spare at the level of the track it preloads.
 function applyVolume(): void {
-  const { volume, muted } = getState()
-  for (const element of [audio, spare]) {
-    element.volume = volume
-    element.muted = muted
-  }
+  const { volume, muted, queue, index } = getState()
+  const next = preloaded ? queue.find((entry) => entry.key === preloaded?.key) : undefined
+  audio.volume = volume * levelOf(queue[index])
+  spare.volume = volume * levelOf(next)
+  audio.muted = muted
+  spare.muted = muted
+}
+
+/** The ReplayGain factor of an entry: album gain when its album plays whole and in order (Play on the album's page). */
+function levelOf(entry: QueueEntry | undefined): number {
+  const { leveling, origin, shuffle } = getState()
+  const album = origin?.startsWith('album:') ? origin.slice('album:'.length) : null
+  return gainFactor(entry?.track, leveling, !shuffle && album !== null && entry?.track.album?.id === album)
 }
 applyVolume()
 usePlayer.subscribe((state, previousState) => {
@@ -622,7 +644,15 @@ usePlayer.subscribe((state, previousState) => {
   ) {
     scheduleSave()
   }
-  if (state.volume !== previousState.volume || state.muted !== previousState.muted) {
+  if (
+    state.volume !== previousState.volume ||
+    state.muted !== previousState.muted ||
+    state.leveling !== previousState.leveling ||
+    state.queue !== previousState.queue ||
+    state.index !== previousState.index ||
+    state.origin !== previousState.origin ||
+    state.shuffle !== previousState.shuffle
+  ) {
     applyVolume()
   }
   if (state.quality !== previousState.quality) {

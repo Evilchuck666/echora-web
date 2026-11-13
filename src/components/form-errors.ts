@@ -1,3 +1,4 @@
+import { useEffect, type RefObject } from 'react'
 import { ApiError } from '../api/client'
 
 /** What went wrong with a form: messages for its fields, and one for the form itself. */
@@ -24,7 +25,14 @@ export function formErrors(error: unknown, fields: string[], fallback: string): 
   return { fields: known, form: others.length > 0 ? others.map(([, message]) => message).join(' ') : error.message }
 }
 
-/** After a failed submit, the first field with an error gets the focus (once React has drawn the errors). */
-export function focusFirstInvalid(form: HTMLFormElement | null): void {
-  requestAnimationFrame(() => form?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+/**
+ * After a failed submit, the first field with an error gets the focus: in an effect, once React has drawn the
+ * errors (a frame later isn't always enough: React may render an update from an async handler after it).
+ */
+export function useFocusOnErrors(form: RefObject<HTMLFormElement | null>, errors: FormErrors): void {
+  useEffect(() => {
+    if (Object.keys(errors.fields).length > 0) {
+      form.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    }
+  }, [form, errors])
 }

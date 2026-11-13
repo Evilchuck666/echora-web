@@ -147,3 +147,26 @@ test('with the data saver on, the API is asked to convert the next FLAC tracks a
   await page.waitForTimeout(1000)
   expect(api.transcodes).toHaveLength(count)
 })
+
+test('volume leveling lowers each track by its ReplayGain: the album gain for a whole album, else the track gain', async ({ page }) => {
+  const volume = () => page.evaluate(() => (window as unknown as { audioElements: HTMLAudioElement[] }).audioElements.find((element) => element.dataset.player === 'current')!.volume)
+  const db = (gain: number) => 10 ** (gain / 20)
+  // Killer's files have ReplayGain tags: an album gain of -4 dB, and -7, -8, -9 dB track by track (the mock API).
+  await playAlbum(page, 'Killer')
+  await expect.poll(volume).toBeCloseTo(db(-4))
+
+  const menu = player(page).getByRole('button', { name: /^Audio quality:/ })
+  await expect(menu).toHaveAccessibleName('Audio quality: Original. Volume leveling: Auto')
+  await menu.click()
+  await expect(page.getByRole('group', { name: 'Volume leveling' }).getByRole('menuitemradio', { name: /^Auto/ })).toHaveAttribute('aria-checked', 'true')
+  await page.getByRole('menuitemradio', { name: /^Track/ }).click()
+  await expect.poll(volume).toBeCloseTo(db(-7))
+
+  await menu.click()
+  await page.getByRole('menuitemradio', { name: /^Off/ }).click()
+  await expect.poll(volume).toBe(1)
+
+  // Remembered, and a track without tags plays as it is.
+  await page.reload()
+  await expect(player(page).getByRole('button', { name: /^Audio quality:/ })).toHaveAccessibleName('Audio quality: Original. Volume leveling: Off')
+})

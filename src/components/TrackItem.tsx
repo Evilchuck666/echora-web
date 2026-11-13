@@ -22,13 +22,15 @@ interface TrackItemProps {
   before?: ReactNode
   /** Shown last in the row, e.g. a button to remove it from a playlist. */
   after?: ReactNode
+  /** A short fact shown before the heart on wider screens, e.g. "3 plays · yesterday". */
+  note?: ReactNode
 }
 
 /**
  * A track among others of various albums: its album cover (a play button on hover), title, artist and album (links),
  * a heart, its length and a "⋯" menu. The track loaded in the player is highlighted.
  */
-export function TrackItem({ track, onPlay = () => playQueue([track]), before, after }: TrackItemProps) {
+export function TrackItem({ track, onPlay = () => playQueue([track]), before, after, note }: TrackItemProps) {
   const album = track.album
   const current = usePlayer((state) => selectCurrentTrack(state)?.id === track.id)
   const nowPlaying = usePlayer((state) => state.playing) && current
@@ -67,6 +69,7 @@ export function TrackItem({ track, onPlay = () => playQueue([track]), before, af
           </Link>
         </p>
       </div>
+      {note && <span className="hidden shrink-0 text-sm text-neutral-400 sm:block">{note}</span>}
       <FavouriteButton
         kind="track"
         id={track.id}

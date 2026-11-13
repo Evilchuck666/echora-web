@@ -10,6 +10,8 @@ export interface MenuAction {
   checked?: boolean
   /** Shown, but can't be chosen; `description` should say why. */
   disabled?: boolean
+  /** A heading shared by the consecutive actions that have it (a group of the menu, e.g. "Volume leveling"). */
+  section?: string
   onSelect: () => unknown
 }
 
@@ -122,6 +124,37 @@ export function ActionsMenu({ label, actions, className = '', icon, buttonClassN
     event.preventDefault()
   }
 
+  function renderItem(action: MenuAction) {
+    return (
+      <button
+        key={action.label}
+        type="button"
+        role={action.checked === undefined ? 'menuitem' : 'menuitemradio'}
+        aria-checked={action.checked}
+        aria-disabled={action.disabled || undefined}
+        tabIndex={-1}
+        onClick={() => {
+          if (action.disabled) {
+            return
+          }
+          close(true)
+          void action.onSelect()
+        }}
+        className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus:bg-neutral-800 focus:outline-none aria-disabled:cursor-default aria-disabled:opacity-50"
+      >
+        {action.checked !== undefined && (
+          <span aria-hidden="true" className="w-4 shrink-0 text-violet-400">
+            {action.checked ? '✓' : ''}
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block">{action.label}</span>
+          {action.description && <span className="block text-xs text-neutral-400">{action.description}</span>}
+        </span>
+      </button>
+    )
+  }
+
   return (
     // A double click here doesn't reach the row around it (a double click on a track row plays it).
     <span onDoubleClick={(event) => event.stopPropagation()} className={className}>
@@ -151,37 +184,35 @@ export function ActionsMenu({ label, actions, className = '', icon, buttonClassN
             style={position}
             className={`fixed z-50 rounded-md border border-neutral-700 bg-neutral-900 py-1 shadow-2xl ${wide ? 'w-64' : 'w-48'}`}
           >
-            {actions.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                role={action.checked === undefined ? 'menuitem' : 'menuitemradio'}
-                aria-checked={action.checked}
-                aria-disabled={action.disabled || undefined}
-                tabIndex={-1}
-                onClick={() => {
-                  if (action.disabled) {
-                    return
-                  }
-                  close(true)
-                  void action.onSelect()
-                }}
-                className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm text-neutral-200 hover:bg-neutral-800 focus:bg-neutral-800 focus:outline-none aria-disabled:cursor-default aria-disabled:opacity-50"
-              >
-                {action.checked !== undefined && (
-                  <span aria-hidden="true" className="w-4 shrink-0 text-violet-400">
-                    {action.checked ? '✓' : ''}
-                  </span>
-                )}
-                <span className="min-w-0">
-                  <span className="block">{action.label}</span>
-                  {action.description && <span className="block text-xs text-neutral-400">{action.description}</span>}
-                </span>
-              </button>
-            ))}
+            {sections(actions).map(({ section, items }, index) =>
+              section ? (
+                <div key={section} role="group" aria-label={section} className={index > 0 ? 'mt-1 border-t border-neutral-800 pt-1' : ''}>
+                  <div aria-hidden="true" className="px-3 pt-1.5 pb-1 text-xs font-medium tracking-wider text-neutral-500 uppercase">
+                    {section}
+                  </div>
+                  {items.map(renderItem)}
+                </div>
+              ) : (
+                items.map(renderItem)
+              ),
+            )}
           </div>,
           document.body,
         )}
     </span>
   )
+}
+
+/** The actions, by section: consecutive actions with the same `section` (or none) together, in order. */
+function sections(actions: MenuAction[]): { section?: string; items: MenuAction[] }[] {
+  const result: { section?: string; items: MenuAction[] }[] = []
+  for (const action of actions) {
+    const last = result.at(-1)
+    if (last && last.section === action.section) {
+      last.items.push(action)
+    } else {
+      result.push({ section: action.section, items: [action] })
+    }
+  }
+  return result
 }

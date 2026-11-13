@@ -212,6 +212,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The latest library scan: queued, running, or its report (administrators only)
+         * @description Ask again while `status` is `queued` or `running`. While running, `phase` (listing, files, covers, artist_images, in this order), `phaseDone` and `phaseTotal` tell how far it got, updated every second at most. Once `finished`, the counts say what changed; `failures` lists the files that could not be read.
+         */
+        get: operations["api_libraryscan_get"];
+        put?: never;
+        /**
+         * Scans the music library in the background (administrators only)
+         * @description Adds new files, updates changed ones, follows moved ones and removes the tracks of deleted ones, as app:library:scan does. Send `{}`, or `{"full": true}` to read every file again (after an update of Echora that reads more tags). One scan at a time. The library is also scanned every night.
+         */
+        post: operations["api_libraryscan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every library scan, the latest first (administrators only)
+         * @description Every library scan, the latest first (administrators only)
+         */
+        get: operations["api_libraryscans_get_collection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/scans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A library scan (administrators only)
+         * @description A library scan (administrators only)
+         */
+        get: operations["api_libraryscans_id_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth": {
         parameters: {
             query?: never;
@@ -222,8 +286,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Creates a user token.
-         * @description Creates a user token.
+         * Signs in: returns a JWT and a refresh token
+         * @description `username` is the username or the email of the account. After 5 failed attempts for an account from one address (or 25 from one address, whatever the accounts) in 15 minutes, every attempt is refused for a while, even with the right password: 429, with a Retry-After header (seconds). A successful sign-in clears the count of that account.
          */
         post: operations["login_check_post"];
         delete?: never;
@@ -266,6 +330,46 @@ export interface paths {
          * @description Returns a new JWT, and a refresh token to use for the next exchange.
          */
         post: operations["gesdinet_jwt_refresh_token_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/recent-tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tracks the user making the request played, the most recently played first
+         * @description Each track once, with how many times and when it was last played. Paginated, 30 per page.
+         */
+        get: operations["recent_tracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/top-tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tracks the user making the request played most
+         * @description Each track once, the most played first (then the most recently played), counting the plays of the period only. Paginated, 30 per page.
+         */
+        get: operations["top_tracks"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -500,6 +604,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracks/{id}/plays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Records a play of the track in the listening history of the user making the request
+         * @description Send it once the track counts as listened to: when it ends, or once half of it (or 4 minutes) has played, whichever comes first. A play of the same track within 30 seconds of another one counts once, so retrying is safe. Without a body, the play is now; a client that played offline sends `playedAt` (ISO 8601) when it reconnects. The history is read through GET /api/me/recent-tracks and /api/me/top-tracks.
+         */
+        post: operations["play_track"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracks/{id}/stream": {
         parameters: {
             query?: never;
@@ -597,6 +721,23 @@ export interface paths {
         post: operations["upload_my_avatar"];
         /** Removes the profile picture of the account the request is authenticated as */
         delete: operations["delete_my_avatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Forgets every play of the user making the request */
+        delete: operations["clear_history"];
         options?: never;
         head?: never;
         patch?: never;
@@ -716,6 +857,15 @@ export interface components {
             year?: number | null;
         };
         /** @description An album, identified by its album artist and title. */
+        "Album-played_track.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
         "Album-playlist_item.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -769,6 +919,15 @@ export interface components {
              */
             favourite?: boolean;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
+            title?: string;
+            year?: number | null;
+        };
+        /** @description An album, identified by its album artist and title. */
+        "Album.jsonld-played_track.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /** @description Signed URL of the cover image (from the album folder, or else TheAudioDB), or null when there is none; works without an Authorization header, e.g. as the src of an <img> */
+            coverUrl?: string | null;
             title?: string;
             year?: number | null;
         };
@@ -834,6 +993,12 @@ export interface components {
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist-played_track.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
         "Artist-playlist_item.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -881,6 +1046,12 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            name?: string;
+        };
+        /** @description A performer: the album artist of an album or the artist of a track. */
+        "Artist.jsonld-played_track.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
             name?: string;
         };
         /** @description A performer: the album artist of an album or the artist of a track. */
@@ -1043,6 +1214,163 @@ export interface components {
             });
             "@id": string;
             "@type": string;
+        };
+        /**
+         * @description One scan of the music library, asked for by an administrator (POST /api/library/scan, run by the library worker),
+         *     from the console (app:library:scan) or by the nightly job: its status and, once finished, its report. Administrators
+         *     only (docs/decisions/0015).
+         */
+        "LibraryScan-library_scan.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            /**
+             * @description queued, running, finished or failed
+             * @default queued
+             * @enum {string}
+             */
+            readonly status?: "queued" | "running" | "finished" | "failed";
+            /** Format: date-time */
+            readonly requestedAt?: string;
+            /** Format: date-time */
+            readonly startedAt?: string | null;
+            /** Format: date-time */
+            readonly finishedAt?: string | null;
+            /**
+             * @description While running: listing (finding the files), files (reading them), covers (albums), then artist_images (artists, 30 TheAudioDB lookups a minute at most). Null otherwise
+             * @enum {string|null}
+             */
+            readonly phase?: "listing" | "files" | "covers" | "artist_images" | null;
+            /** @description While running: how many files, albums or artists of the phase are done (updated every second at most) */
+            readonly phaseDone?: number | null;
+            /** @description While running: how many files, albums or artists the phase has (0 while listing, as it is not known yet) */
+            readonly phaseTotal?: number | null;
+            /** @description New files, now tracks */
+            readonly added?: number | null;
+            /** @description Files moved or renamed, found again by their audio: their tracks were kept */
+            readonly moved?: number | null;
+            /** @description Changed files, read again */
+            readonly updated?: number | null;
+            readonly unchanged?: number | null;
+            /** @description Tracks whose file is gone, deleted */
+            readonly removed?: number | null;
+            /** @description Files that could not be read, and were skipped (see failures) */
+            readonly failed?: number | null;
+            failures?: {
+                [key: string]: string;
+            };
+            readonly coversUpdated?: number | null;
+            readonly coversDownloaded?: number | null;
+            readonly artistImagesUpdated?: number | null;
+            readonly artistImagesDownloaded?: number | null;
+            /** @description Why TheAudioDB lookups stopped during the scan, if they did: the rest waits for the next scan */
+            readonly theAudioDbFailure?: string | null;
+            /** @description Why the scan failed */
+            readonly error?: string | null;
+            /** @description Whether every file was read again, even unchanged ones */
+            full?: boolean;
+            /**
+             * @description api (an administrator), console (app:library:scan) or schedule (the nightly scan)
+             * @enum {string}
+             */
+            trigger?: "api" | "console" | "schedule";
+        };
+        /**
+         * @description One scan of the music library, asked for by an administrator (POST /api/library/scan, run by the library worker),
+         *     from the console (app:library:scan) or by the nightly job: its status and, once finished, its report. Administrators
+         *     only (docs/decisions/0015).
+         */
+        "LibraryScan.LibraryScanRequest": {
+            /** @description Read every file again, even unchanged ones (after an update of Echora that reads more tags). */
+            full?: boolean;
+        };
+        /**
+         * @description One scan of the music library, asked for by an administrator (POST /api/library/scan, run by the library worker),
+         *     from the console (app:library:scan) or by the nightly job: its status and, once finished, its report. Administrators
+         *     only (docs/decisions/0015).
+         */
+        "LibraryScan.jsonld-library_scan.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            /**
+             * @description queued, running, finished or failed
+             * @default queued
+             * @enum {string}
+             */
+            readonly status?: "queued" | "running" | "finished" | "failed";
+            /** Format: date-time */
+            readonly requestedAt?: string;
+            /** Format: date-time */
+            readonly startedAt?: string | null;
+            /** Format: date-time */
+            readonly finishedAt?: string | null;
+            /**
+             * @description While running: listing (finding the files), files (reading them), covers (albums), then artist_images (artists, 30 TheAudioDB lookups a minute at most). Null otherwise
+             * @enum {string|null}
+             */
+            readonly phase?: "listing" | "files" | "covers" | "artist_images" | null;
+            /** @description While running: how many files, albums or artists of the phase are done (updated every second at most) */
+            readonly phaseDone?: number | null;
+            /** @description While running: how many files, albums or artists the phase has (0 while listing, as it is not known yet) */
+            readonly phaseTotal?: number | null;
+            /** @description New files, now tracks */
+            readonly added?: number | null;
+            /** @description Files moved or renamed, found again by their audio: their tracks were kept */
+            readonly moved?: number | null;
+            /** @description Changed files, read again */
+            readonly updated?: number | null;
+            readonly unchanged?: number | null;
+            /** @description Tracks whose file is gone, deleted */
+            readonly removed?: number | null;
+            /** @description Files that could not be read, and were skipped (see failures) */
+            readonly failed?: number | null;
+            failures?: {
+                [key: string]: string;
+            };
+            readonly coversUpdated?: number | null;
+            readonly coversDownloaded?: number | null;
+            readonly artistImagesUpdated?: number | null;
+            readonly artistImagesDownloaded?: number | null;
+            /** @description Why TheAudioDB lookups stopped during the scan, if they did: the rest waits for the next scan */
+            readonly theAudioDbFailure?: string | null;
+            /** @description Why the scan failed */
+            readonly error?: string | null;
+            /** @description Whether every file was read again, even unchanged ones */
+            full?: boolean;
+            /**
+             * @description api (an administrator), console (app:library:scan) or schedule (the nightly scan)
+             * @enum {string}
+             */
+            trigger?: "api" | "console" | "schedule";
+        };
+        /**
+         * @description A track in the listening history of the user making the request (docs/decisions/0016), with how many times they
+         *     played it and when last.
+         */
+        "PlayedTrack-played_track.read_track.read": {
+            /** @description The track, as GET /api/tracks returns it */
+            track?: components["schemas"]["Track-played_track.read_track.read"];
+            /** @description How many times the user played it (in the period, for top tracks) */
+            playCount?: number;
+            /**
+             * Format: date-time
+             * @description When the user last played it
+             */
+            lastPlayedAt?: string;
+        };
+        /**
+         * @description A track in the listening history of the user making the request (docs/decisions/0016), with how many times they
+         *     played it and when last.
+         */
+        "PlayedTrack.jsonld-played_track.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** @description The track, as GET /api/tracks returns it */
+            track?: components["schemas"]["Track.jsonld-played_track.read_track.read"];
+            /** @description How many times the user played it (in the period, for top tracks) */
+            playCount?: number;
+            /**
+             * Format: date-time
+             * @description When the user last played it
+             */
+            lastPlayedAt?: string;
         };
         /**
          * @description A playlist of a user: its tracks are PlaylistItems, in their order. Only its owner sees or changes it; for anyone
@@ -1247,6 +1575,48 @@ export interface components {
          * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
          *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
          */
+        "Track-played_track.read_track.read": {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album-played_track.read_track.read"];
+            artist?: components["schemas"]["Artist-played_track.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
+        };
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
         "Track-playlist_item.read_track.read": {
             /** Format: uuid */
             readonly id?: string;
@@ -1272,6 +1642,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1304,6 +1684,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1336,6 +1726,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1370,6 +1770,58 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
+            /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
+            readonly hasLyrics?: boolean;
+        };
+        /**
+         * @description An audio file of the library. Its audio is served by GET /api/tracks/{id}/stream, and, for FLAC
+         *     files, converted to Opus by GET /api/tracks/{id}/stream/opus.
+         */
+        "Track.jsonld-played_track.read_track.read": components["schemas"]["HydraItemBaseSchema"] & {
+            /** Format: uuid */
+            readonly id?: string;
+            readonly title?: string;
+            album?: components["schemas"]["Album.jsonld-played_track.read_track.read"];
+            artist?: components["schemas"]["Artist.jsonld-played_track.read_track.read"];
+            readonly trackNumber?: number | null;
+            readonly discNumber?: number | null;
+            /** @description Length in milliseconds, when known. */
+            readonly durationMs?: number | null;
+            readonly genre?: string | null;
+            /** @description Container format: "flac" or "mp3". */
+            readonly format?: string;
+            readonly mimeType?: string;
+            /** @description Size of the audio file in bytes. */
+            readonly fileSize?: number | string;
+            /** @description Signed URL of the audio, valid for a few hours; works without an Authorization header, e.g. as the src of an <audio> element */
+            streamUrl?: string;
+            /** @description Signed URL of the audio converted to Opus (Ogg, 256 kbit/s), to save bandwidth. Left out for MP3 tracks, which are only served as they are. Valid and usable like streamUrl. The first request for a track waits for the conversion (a few seconds) */
+            opusStreamUrl?: string | null;
+            /**
+             * @description Whether this track is one of the favourites of the user making the request (PUT or DELETE /api/tracks/{id}/favourite)
+             * @default false
+             */
+            favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1402,6 +1854,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1434,6 +1896,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1466,6 +1938,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -1500,6 +1982,16 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            replayGain?: {
+                /** @example -6.48 */
+                trackGain?: number;
+                /** @example 0.988159 */
+                trackPeak?: number;
+                /** @example -5.92 */
+                albumGain?: number;
+                /** @example 0.999969 */
+                albumPeak?: number;
+            };
             /** @description Whether GET /api/tracks/{id} returns lyrics for this track */
             readonly hasLyrics?: boolean;
         };
@@ -2046,6 +2538,195 @@ export interface operations {
             };
         };
     };
+    api_libraryscan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LibraryScan resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["LibraryScan.jsonld-library_scan.read"];
+                    "application/json": components["schemas"]["LibraryScan-library_scan.read"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The library was never scanned */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_libraryscan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new LibraryScan resource */
+        requestBody: {
+            content: {
+                "application/ld+json": components["schemas"]["LibraryScan.LibraryScanRequest"];
+                "application/json": components["schemas"]["LibraryScan.LibraryScanRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued: the library worker runs it in the background. Follow it with GET /api/library/scan */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["LibraryScan.jsonld-library_scan.read"];
+                    "application/json": components["schemas"]["LibraryScan-library_scan.read"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A scan is already queued or running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["ConstraintViolation.jsonld"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    api_libraryscans_get_collection: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LibraryScan collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["LibraryScan.jsonld-library_scan.read"][];
+                    };
+                    "application/json": components["schemas"]["LibraryScan-library_scan.read"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_libraryscans_id_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description LibraryScan identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LibraryScan resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["LibraryScan.jsonld-library_scan.read"];
+                    "application/json": components["schemas"]["LibraryScan-library_scan.read"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["Error.jsonld"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     login_check_post: {
         parameters: {
             query?: never;
@@ -2077,6 +2758,32 @@ export interface operations {
                          * @description The Unix timestamp the refresh token expires at
                          */
                         readonly refresh_token_expiration?: number;
+                    };
+                };
+            };
+            /** @description Wrong username, email or password */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: number;
+                        message: string;
+                    };
+                };
+            };
+            /** @description Too many failed attempts: wait for the seconds of the Retry-After header */
+            429: {
+                headers: {
+                    /** @description Seconds to wait */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        code: number;
+                        message: string;
                     };
                 };
             };
@@ -2163,6 +2870,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    recent_tracks: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PlayedTrack collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["PlayedTrack.jsonld-played_track.read_track.read"][];
+                    };
+                    "application/json": components["schemas"]["PlayedTrack-played_track.read_track.read"][];
+                };
+            };
+        };
+    };
+    top_tracks: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+                /** @description Count the plays of the last week, month (30 days), year, or all of them */
+                period?: "week" | "month" | "year" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PlayedTrack collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["PlayedTrack.jsonld-played_track.read_track.read"][];
+                    };
+                    "application/json": components["schemas"]["PlayedTrack-played_track.read_track.read"][];
+                };
             };
         };
     };
@@ -2861,6 +3622,59 @@ export interface operations {
             };
         };
     };
+    play_track: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Optional: when the track was played */
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @description When it was played, if not now: within the last year
+                     */
+                    playedAt?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Recorded (or the same play was already) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A playedAt in the future, or more than a year ago */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     stream_track: {
         parameters: {
             query?: {
@@ -3211,6 +4025,31 @@ export interface operations {
             };
         };
     };
+    clear_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The listening history is empty */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_mepassword_post: {
         parameters: {
             query?: never;
@@ -3257,6 +4096,13 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ConstraintViolation"];
                     "application/json": components["schemas"]["ConstraintViolation"];
                 };
+            };
+            /** @description 5 wrong current passwords in 15 minutes: wait for the seconds of the Retry-After header */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

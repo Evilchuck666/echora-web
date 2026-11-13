@@ -2,11 +2,13 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { MAX_NAME, MIN_PASSWORD, updateProfile, useCurrentUser, USERNAME_PATTERN, type Account } from '../account/accounts'
 import { changePassword } from '../auth/session'
 import { AvatarPicker } from '../components/AvatarPicker'
-import { focusFirstInvalid, formErrors, NO_ERRORS, type FormErrors } from '../components/form-errors'
-import { Field, FormError, PRIMARY_BUTTON } from '../components/forms'
+import { Dialog } from '../components/Dialog'
+import { formErrors, NO_ERRORS, useFocusOnErrors, type FormErrors } from '../components/form-errors'
+import { Field, FormError, PRIMARY_BUTTON, SECONDARY_BUTTON } from '../components/forms'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
 import { showToast } from '../components/toast'
+import { clearHistory } from '../library/history'
 
 const OFFLINE = "Couldn't reach the server. Try again."
 
@@ -35,6 +37,9 @@ export function ProfilePage() {
           <Section title="Password">
             <PasswordForm username={me.data.username ?? ''} />
           </Section>
+          <Section title="Listening history">
+            <ClearHistory />
+          </Section>
         </>
       )}
     </main>
@@ -56,6 +61,7 @@ function DetailsForm({ account }: { account: Account }) {
   const [username, setUsername] = useState(account.username ?? '')
   const [email, setEmail] = useState(account.email ?? '')
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
+  useFocusOnErrors(form, errors)
   const [saving, setSaving] = useState(false)
 
   // Only what changed is sent. An email can be set, not removed (older accounts have none until one is set).
@@ -76,7 +82,6 @@ function DetailsForm({ account }: { account: Account }) {
     } catch (error) {
       setErrors(formErrors(error, ['name', 'username', 'email'], OFFLINE))
       setSaving(false)
-      focusFirstInvalid(form.current)
     }
   }
 
@@ -128,13 +133,13 @@ function PasswordForm({ username }: { username: string }) {
   const [next, setNext] = useState('')
   const [repeat, setRepeat] = useState('')
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS)
+  useFocusOnErrors(form, errors)
   const [saving, setSaving] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (next !== repeat) {
       setErrors({ fields: { repeat: 'The passwords are not the same.' }, form: null })
-      focusFirstInvalid(form.current)
       return
     }
     setSaving(true)
@@ -150,7 +155,6 @@ function PasswordForm({ username }: { username: string }) {
       const { fields, form: message } = formErrors(error, ['currentPassword', 'newPassword'], OFFLINE)
       const renamed = Object.entries(fields).map(([field, text]) => [field === 'currentPassword' ? 'current' : 'next', text])
       setErrors({ fields: Object.fromEntries(renamed), form: message })
-      focusFirstInvalid(form.current)
     } finally {
       setSaving(false)
     }
@@ -196,5 +200,54 @@ function PasswordForm({ username }: { username: string }) {
         </button>
       </div>
     </form>
+  )
+}
+
+/** Forgets every play of the user, after a confirmation: History empties, Most played starts again. */
+function ClearHistory() {
+  const [asking, setAsking] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function clear() {
+    setClearing(true)
+    setError(null)
+    try {
+      await clearHistory()
+      setAsking(false)
+      showToast('Listening history cleared')
+    } catch (caught) {
+      setError(formErrors(caught, [], OFFLINE).form)
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  return (
+    <>
+      <p className="mb-4 text-sm text-neutral-400">The tracks you listen to make your History: only you see it.</p>
+      <button type="button" onClick={() => setAsking(true)} className={SECONDARY_BUTTON}>
+        Clear listening history
+      </button>
+      {asking && (
+        <Dialog title="Clear your listening history?" onClose={() => setAsking(false)}>
+          <p className="text-neutral-300">Every play is forgotten: Recently played and Most played start again. Favourites and playlists stay.</p>
+          <FormError message={error} />
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" onClick={() => setAsking(false)} className={SECONDARY_BUTTON}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void clear()}
+              disabled={clearing}
+              className="rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-500 disabled:opacity-50"
+            >
+              Clear
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </>
   )
 }

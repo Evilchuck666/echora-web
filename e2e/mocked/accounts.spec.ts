@@ -179,6 +179,22 @@ test.describe('signed in', () => {
     await other.close()
   })
 
+  test('after 5 wrong current passwords, changing it is refused for a while', async ({ page }) => {
+    await openFromAccountMenu(page, 'Profile')
+    await field(page, 'New password').fill('a new secret')
+    await field(page, 'Repeat the new password').fill('a new secret')
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await field(page, 'Current password').fill(`wrong ${attempt}`)
+      await page.getByRole('button', { name: 'Change password' }).click()
+      await expect(page.getByText('The current password is wrong.')).toBeVisible()
+    }
+
+    await field(page, 'Current password').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Change password' }).click()
+
+    await expect(page.getByRole('alert')).toHaveText('Too many wrong passwords: try again in 15 minutes.')
+  })
+
   test('an administrator creates an account; its username comes from the email', async ({ page, api }) => {
     await openFromAccountMenu(page, 'Users')
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible()

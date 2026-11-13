@@ -96,3 +96,16 @@ test('a refresh whose response was lost does not sign out', async ({ page, signI
   expect(api.refreshes).toHaveLength(2)
   expect(api.refreshes[0]).toBe(api.refreshes[1])
 })
+
+test('after 5 wrong passwords, sign-ins are refused for a while, even the right one', async ({ page, api: _api }) => {
+  await page.goto('/login')
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    await fillSignIn(page, USERNAME, 'wrong')
+    await expect(page.getByRole('alert')).toHaveText('Wrong email, username or password')
+  }
+
+  await fillSignIn(page, USERNAME, PASSWORD)
+
+  await expect(page.getByRole('alert')).toHaveText('Too many failed sign-in attempts: try again in 15 minutes.')
+  await expect(page).toHaveURL('/login')
+})

@@ -16,6 +16,7 @@ import {
   removeFromQueue,
   restoreSavedQueue,
   seek,
+  setLeveling,
   setQuality,
   setVolume,
   stop,
@@ -82,7 +83,7 @@ const many = (count: number) => Array.from({ length: count }, (_, i) => track(St
 
 beforeEach(() => {
   stop()
-  usePlayer.setState({ volume: 1, muted: false, shuffle: false, repeat: 'off', quality: 'original' })
+  usePlayer.setState({ volume: 1, muted: false, shuffle: false, repeat: 'off', quality: 'original', leveling: 'auto' })
   // Back to happy-dom's own (unknown) duration: the elements are the same from test to test.
   for (const element of created) {
     delete (element as { duration?: number }).duration
@@ -672,6 +673,7 @@ describe('volume', () => {
       shuffle: false,
       repeat: 'off',
       quality: 'original',
+      leveling: 'auto',
     })
   })
 
@@ -689,6 +691,53 @@ describe('volume', () => {
 
     toggleMute()
     expect(audio().muted).toBe(true)
+  })
+})
+
+describe('volume leveling (ReplayGain)', () => {
+  const tagged = (id: string, trackGain: number, albumGain?: number): PlayerTrack => ({
+    ...track(id),
+    replayGain: { trackGain, ...(albumGain === undefined ? {} : { albumGain }) },
+  })
+  const db = (gain: number) => 10 ** (gain / 20)
+
+  it("lowers the volume by the track's gain, times the user's volume", async () => {
+    setVolume(0.5)
+    playQueue([tagged('1', -6), track('2')])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+
+    expect(audio().volume).toBeCloseTo(0.5 * db(-6))
+    expect(usePlayer.getState().volume).toBe(0.5)
+
+    // A track without tags plays as it is.
+    next()
+    await vi.waitFor(() => expect(currentId()).toBe('2'))
+    expect(audio().volume).toBe(0.5)
+  })
+
+  it('uses the album gain when the album plays whole, from its page, and not in shuffle', async () => {
+    playQueue([tagged('1', -6, -3), tagged('2', -8, -3)], { origin: 'album:album' })
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+    expect(audio().volume).toBeCloseTo(db(-3))
+
+    toggleShuffle()
+    expect(audio().volume).toBeCloseTo(db(selectCurrentTrack(usePlayer.getState())?.id === '1' ? -6 : -8))
+
+    toggleShuffle()
+    setLeveling('track')
+    expect(audio().volume).toBeCloseTo(db(selectCurrentTrack(usePlayer.getState())?.id === '1' ? -6 : -8))
+    setLeveling('off')
+    expect(audio().volume).toBe(1)
+  })
+
+  it('gives the preloaded track its own level, before it plays', async () => {
+    playQueue([tagged('1', -2), tagged('2', -10)])
+    await vi.waitFor(() => expect(usePlayer.getState().playing).toBe(true))
+
+    playAt(151)
+    expect(spare().src).toBe(streamUrl('2'))
+    expect(spare().volume).toBeCloseTo(db(-10))
+    expect(audio().volume).toBeCloseTo(db(-2))
   })
 })
 

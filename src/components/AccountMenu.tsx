@@ -4,7 +4,10 @@ import { signOut } from '../auth/session'
 import { ActionsMenu, type MenuAction } from './ActionsMenu'
 import { Avatar } from './Avatar'
 
-/** The header's account button (picture and name): the profile, the accounts (administrators) and signing out. */
+/**
+ * The header's account button (picture and name): the profile, the accounts and the library scans (administrators),
+ * and signing out.
+ */
 export function AccountMenu() {
   const { data: user } = useCurrentUser()
   const navigate = useNavigate()
@@ -12,7 +15,12 @@ export function AccountMenu() {
 
   const actions: MenuAction[] = [
     { label: 'Profile', onSelect: () => navigate('/profile') },
-    ...(user?.admin ? [{ label: 'Users', description: 'Accounts of this server', onSelect: () => navigate('/admin/users') }] : []),
+    ...(user?.admin
+      ? [
+          { label: 'Users', description: 'Accounts of this server', onSelect: () => navigate('/admin/users') },
+          { label: 'Library', description: 'Scan the music folder', onSelect: () => navigate('/admin/library') },
+        ]
+      : []),
     { label: 'Sign out', onSelect: () => signOut() },
   ]
 
