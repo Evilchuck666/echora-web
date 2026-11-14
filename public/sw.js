@@ -6,7 +6,8 @@
 // - Pages (navigations): the network first, so a new version is used as soon as it is deployed; the copy kept from
 //   the last visit when the network fails or takes more than NAVIGATION_TIMEOUT_MS.
 // - /assets/*: built with a hash in their names, they never change: kept once fetched, served from the copy. When a new
-//   index.html arrives, the assets it no longer uses are let go.
+//   version's index.html arrives, the assets it doesn't name are let go (pages loaded on demand, which it doesn't
+//   name, are fetched again the next time they open).
 // - The icons and the manifest: the copy at once, refreshed in the background.
 //
 // Plain JavaScript in public/, copied as is to the root of the build: its scope is the whole app.
@@ -55,8 +56,14 @@ async function page(request) {
   const cache = await caches.open(CACHE)
   const network = fetch(request).then(async (response) => {
     if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+      const html = await response.clone().text()
+      const previous = await cache.match(SHELL)
+      // A new version: the assets of the previous one go. (Pages loaded on demand aren't named in index.html: they
+      // are kept until then.)
+      if (previous && (await previous.text()) !== html) {
+        await forgetUnusedAssets(cache, html)
+      }
       await cache.put(SHELL, response.clone())
-      await forgetUnusedAssets(cache, await response.clone().text())
     }
     return response
   })
