@@ -46,7 +46,8 @@ test('a result opens, and Back returns to the results', async ({ page }) => {
 })
 
 test('the × button empties the field, and leaves the results for the page before', async ({ page }) => {
-  await page.getByRole('link', { name: 'Accept' }).click()
+  await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Artists' }).click()
+  await page.getByRole('link', { name: 'Accept', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Accept' })).toBeVisible()
   const artistUrl = page.url()
   const clear = page.getByRole('button', { name: 'Clear the search' })
@@ -82,7 +83,7 @@ for (const empty of ['/search', '/search?q=', '/search?q=%20%20']) {
 }
 
 test('"/" focuses the search, Enter searches at once', async ({ page }) => {
-  await page.getByRole('heading', { name: 'Artists' }).click()
+  await page.getByRole('heading', { name: 'Recently added' }).click()
   await page.keyboard.press('/')
   await expect(searchBox(page)).toBeFocused()
 

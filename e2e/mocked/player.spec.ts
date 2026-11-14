@@ -40,7 +40,7 @@ test('the music goes on while browsing', async ({ page }) => {
   await expectPlaying(page)
 
   await page.getByRole('link', { name: 'Echora' }).click()
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 
   await expect(player(page).getByRole('link').first()).toHaveText('Be My Lover')
   await expectPlaying(page)

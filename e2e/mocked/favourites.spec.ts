@@ -110,6 +110,7 @@ test('on a small screen the navigation slides in from the header', async ({ page
 
 test('an artist becomes a favourite from its card, and its card says so everywhere', async ({ page, api }) => {
   const heartOf = (scope: ReturnType<Page['getByRole']>) => scope.getByRole('button', { name: 'Favourite Accept' })
+  await library(page).getByRole('link', { name: 'Artists' }).click()
 
   await heartOf(page.getByRole('main')).click()
   await expect(heartOf(page.getByRole('main'))).toHaveAttribute('aria-pressed', 'true')

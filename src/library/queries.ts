@@ -50,6 +50,16 @@ export function useAlbums() {
   })
 }
 
+/** The albums of the library, the most recently added first (when a scan first found them; the API's 0019). */
+export function useRecentlyAddedAlbums() {
+  return useInfiniteQuery({
+    queryKey: ['albums', 'recently-added'],
+    queryFn: ({ pageParam }) => unwrap(api.GET('/api/albums/recently-added', { params: { query: { page: pageParam } } })),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => nextPage(lastPage.view),
+  })
+}
+
 /** Every track of the library, in its order: album artists by name, their albums by year, disc and track number. */
 export function useTracks() {
   return useInfiniteQuery({

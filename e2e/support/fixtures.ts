@@ -22,7 +22,7 @@ export const test = base.extend<Fixtures>({
     await provide(async (page = defaultPage) => {
       await page.goto('/login')
       await fillSignIn(page, USERNAME, PASSWORD)
-      await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
     })
   },
 })

@@ -44,7 +44,7 @@ test('a scan already running (the nightly one) shows, and another one waits for 
 test('an account that is not an administrator has no Library page', async ({ page, api: _api }) => {
   await page.goto('/login')
   await fillSignIn(page, OTHER.username, OTHER.password)
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
   await accountButton(page).click()
   await expect(page.getByRole('menuitem', { name: 'Library' })).toHaveCount(0)
 

@@ -44,7 +44,7 @@ test.describe('a new server', () => {
     await field(page, 'Repeat the password').fill('long enough')
     await page.getByRole('button', { name: 'Create the administrator' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
     await expect(accountButton(page)).toContainText('Ana Admin')
     expect(api.users.map((user) => [user.username, user.email, user.admin])).toEqual([['ana.admin', 'ana.admin@example.com', true]])
 
@@ -52,7 +52,7 @@ test.describe('a new server', () => {
     await signOut(page)
     await expect(page).toHaveURL('/login')
     await fillSignIn(page, 'ana.admin@example.com', 'long enough')
-    await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
   })
 
   test('what the API refuses is said next to the field', async ({ page, api: _api }) => {
@@ -92,7 +92,7 @@ test('a server that is set up sends /setup to the sign-in form', async ({ page, 
 test('an account signs in with its email too', async ({ page, api: _api }) => {
   await page.goto('/login')
   await fillSignIn(page, EMAIL, PASSWORD)
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
   await expect(accountButton(page)).toContainText(NAME)
 })
 
@@ -154,7 +154,7 @@ test.describe('signed in', () => {
     const otherPage = await other.newPage()
     await otherPage.goto('/login')
     await fillSignIn(otherPage, USERNAME, PASSWORD)
-    await expect(otherPage.getByRole('heading', { name: 'Artists' })).toBeVisible()
+    await expect(otherPage.getByRole('heading', { name: 'Recently added' })).toBeVisible()
     expect(api.sessionsOf(USERNAME)).toBe(2)
 
     await openFromAccountMenu(page, 'Profile')
@@ -237,7 +237,7 @@ test.describe('signed in', () => {
     const robin = await other.newPage()
     await robin.goto('/login')
     await fillSignIn(robin, OTHER.username, OTHER.password)
-    await expect(robin.getByRole('heading', { name: 'Artists' })).toBeVisible()
+    await expect(robin.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 
     await openFromAccountMenu(page, 'Users')
     await chooseFor(page, OTHER.name, 'Edit…')
@@ -303,7 +303,7 @@ test.describe('signed in', () => {
 test('an account that is not an administrator has no Users page', async ({ page, api: _api }) => {
   await page.goto('/login')
   await fillSignIn(page, OTHER.username, OTHER.password)
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 
   await accountButton(page).click()
   await expect(page.getByRole('menuitem', { name: 'Profile' })).toBeVisible()

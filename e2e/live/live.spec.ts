@@ -15,12 +15,13 @@ async function signIn(page: Page) {
   await page.getByLabel('Email or username').fill(username)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 }
 
 test('browse to an album and play it', async ({ page }) => {
   await signIn(page)
-  const artists = page.getByRole('main').getByRole('list').getByRole('link')
+  await page.goto('/artists')
+  const artists = page.getByRole('main').getByRole('list', { name: 'Artists' }).getByRole('link')
   await expect(artists.first()).toBeVisible()
 
   await artists.first().click()
@@ -38,8 +39,9 @@ test('browse to an album and play it', async ({ page }) => {
 
 test('the search finds an artist by its name', async ({ page }) => {
   await signIn(page)
+  await page.goto('/artists')
   // The name under the photo (the card also holds the artist's initial when there is no photo).
-  const name = (await page.getByRole('main').getByRole('list').getByRole('link').first().locator('p').innerText()).trim()
+  const name = (await page.getByRole('main').getByRole('list', { name: 'Artists' }).getByRole('link').first().locator('p').innerText()).trim()
 
   await page.getByRole('searchbox', { name: 'Search the library' }).fill(name)
 
@@ -92,8 +94,8 @@ test('a refresh whose response was lost does not sign out (the API grace period)
 
   await page.reload()
 
-  await expect(page.getByRole('main').getByRole('list').getByRole('link').first()).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link').first()).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
   expect(lost).toBe(true)
 })

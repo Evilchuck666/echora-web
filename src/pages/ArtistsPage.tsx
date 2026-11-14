@@ -30,7 +30,7 @@ export function ArtistsPage() {
         </p>
       ) : (
         <>
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <ul aria-label="Artists" className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {members.map((artist) => (
               <li key={artist.id}>
                 <ArtistCard artist={artist} />

@@ -178,3 +178,10 @@ export const ExpandIcon = ({ className }: IconProps) => (
     <path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6 1.41 1.41Z" />
   </svg>
 )
+
+/** A sparkle: what is new, the albums recently added. */
+export const RecentIcon = ({ className }: IconProps) => (
+  <svg {...base(className)}>
+    <path d="M10 2.5 11.9 8.1 17.5 10 11.9 11.9 10 17.5 8.1 11.9 2.5 10 8.1 8.1 10 2.5Zm8 11 .95 2.55L21.5 17l-2.55.95L18 20.5l-.95-2.55L14.5 17l2.55-.95L18 13.5Z" />
+  </svg>
+)

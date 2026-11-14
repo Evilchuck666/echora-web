@@ -27,7 +27,9 @@ export const router = createBrowserRouter([
       {
         element: <AppLayout />,
         children: [
-          { path: '/', element: <ArtistsPage /> },
+          // The home page: the albums added to the library last.
+          { path: '/', element: <AlbumsPage recent /> },
+          { path: '/artists', element: <ArtistsPage /> },
           { path: '/artists/:id', element: <ArtistPage /> },
           { path: '/albums', element: <AlbumsPage /> },
           { path: '/albums/:id', element: <AlbumPage /> },

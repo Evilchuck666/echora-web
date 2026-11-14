@@ -163,7 +163,8 @@ test('repeating the whole queue starts it again; repeating a track plays it agai
 })
 
 test('play all plays every album of the artist, in order', async ({ page }) => {
-  await page.getByRole('link', { name: 'Accept' }).click()
+  await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Artists' }).click()
+  await page.getByRole('link', { name: 'Accept', exact: true }).click()
   const playAll = page.getByRole('main').getByRole('button', { name: 'Play all' })
 
   await playAll.click()
@@ -199,7 +200,7 @@ test('with nothing queued, Play plays the whole library, in order', async ({ pag
 
 test('with shuffle on, the space bar plays the whole library in any order', async ({ page }) => {
   await player(page).getByRole('button', { name: 'Shuffle' }).click()
-  await page.getByRole('heading', { name: 'Artists' }).click()
+  await page.getByRole('heading', { name: 'Recently added' }).click()
 
   await page.keyboard.press(' ')
 

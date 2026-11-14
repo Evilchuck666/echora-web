@@ -20,7 +20,7 @@ test('signing in shows the library and the name of the account, and survives a r
 
   await expect(page.getByRole('banner')).toContainText(NAME)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 })
 
 test('after signing in, the app goes back to the page that asked for it', async ({ page, api: _api }) => {
@@ -37,7 +37,7 @@ test('other tabs follow signing in and out', async ({ context, page, signIn, api
   await expect(other).toHaveURL('/login')
 
   await signIn(page)
-  await expect(other.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(other.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 
   const refreshToken = await page.evaluate(() => JSON.parse(localStorage.getItem('echora.session')!).refreshToken)
   await signOut(page)
@@ -50,7 +50,7 @@ test('two tabs with an expired JWT refresh it once', async ({ context, page, sig
   await signIn(page)
   const other = await context.newPage()
   await other.goto('/')
-  await expect(other.getByRole('heading', { name: 'Artists' })).toBeVisible()
+  await expect(other.getByRole('heading', { name: 'Recently added' })).toBeVisible()
 
   // Both tabs find a JWT that expired (exp 0) and reload at the same time.
   await page.evaluate(() => {
@@ -59,10 +59,10 @@ test('two tabs with an expired JWT refresh it once', async ({ context, page, sig
   })
   await Promise.all([page.reload(), other.reload()])
 
-  await expect(page.getByRole('heading', { name: 'Artists' })).toBeVisible()
-  await expect(other.getByRole('heading', { name: 'Artists' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
-  await expect(other.getByRole('link', { name: 'Accept' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Recently added' })).toBeVisible()
+  await expect(other.getByRole('heading', { name: 'Recently added' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link', { name: /Ace of Spades/ }).first()).toBeVisible()
+  await expect(other.getByRole('main').getByRole('link', { name: /Ace of Spades/ }).first()).toBeVisible()
   expect(api.refreshes).toHaveLength(1)
 })
 
@@ -74,7 +74,7 @@ test('a JWT the API rejects is refreshed and the request sent again', async ({ p
 
   await page.reload()
 
-  await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link', { name: /Ace of Spades/ }).first()).toBeVisible()
   expect(api.refreshes).toHaveLength(1)
 })
 
@@ -90,7 +90,7 @@ test('a refresh whose response was lost does not sign out', async ({ page, signI
 
   await page.reload()
 
-  await expect(page.getByRole('link', { name: 'Accept' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('link', { name: /Ace of Spades/ }).first()).toBeVisible()
   await expect(page.getByRole('banner')).toContainText(NAME)
   // The spent token was presented again, and the API's grace period answered it.
   expect(api.refreshes).toHaveLength(2)

@@ -1,19 +1,22 @@
 import { expect, test } from '../support/fixtures.ts'
 
 test.describe('browsing', () => {
-  test.beforeEach(async ({ signIn }) => signIn())
+  test.beforeEach(async ({ page, signIn }) => {
+    await signIn()
+    await page.getByRole('navigation', { name: 'Library' }).getByRole('link', { name: 'Artists' }).click()
+  })
 
   test('artists show their photo, or their initial', async ({ page }) => {
-    const list = page.getByRole('main').getByRole('list')
+    const list = page.getByRole('main').getByRole('list', { name: 'Artists' })
 
     await expect(page.getByText('3 artists')).toBeVisible()
     await expect(list.getByRole('link')).toHaveText(['Accept', 'Alice Cooper', 'MMotörhead'])
-    await expect(list.getByRole('link', { name: 'Accept' }).locator('img')).toHaveJSProperty('naturalWidth', 300)
+    await expect(list.getByRole('link', { name: 'Accept', exact: true }).locator('img')).toHaveJSProperty('naturalWidth', 300)
     await expect(list.getByRole('link', { name: /Motörhead/ }).locator('img')).toHaveCount(0)
   })
 
   test('from an artist to an album and back', async ({ page }) => {
-    await page.getByRole('link', { name: 'Accept' }).click()
+    await page.getByRole('link', { name: 'Accept', exact: true }).click()
 
     await expect(page.getByRole('heading', { name: 'Accept' })).toBeVisible()
     await expect(page.getByText('2 albums')).toBeVisible()
@@ -53,7 +56,8 @@ test.describe('infinite scroll', () => {
 
   test('loads every page while scrolling, and offers a retry when one fails', async ({ page, signIn, api }) => {
     await signIn()
-    const cards = page.getByRole('main').getByRole('list').getByRole('link')
+    await page.goto('/artists')
+    const cards = page.getByRole('main').getByRole('list', { name: 'Artists' }).getByRole('link')
     await expect(page.getByText('70 artists')).toBeVisible()
     await expect(cards).toHaveCount(30)
 

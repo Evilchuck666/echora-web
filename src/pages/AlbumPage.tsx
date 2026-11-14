@@ -26,7 +26,7 @@ export function AlbumPage() {
   if (album.isLoadingError) {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
-        <Breadcrumbs items={[{ label: 'Artists', to: '/' }]} />
+        <Breadcrumbs items={[{ label: 'Artists', to: '/artists' }]} />
         <QueryError error={album.error} retry={album.refetch} notFound="This album isn't in the library." />
       </main>
     )
@@ -75,7 +75,7 @@ export function AlbumPage() {
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <Breadcrumbs
         items={[
-          { label: 'Artists', to: '/' },
+          { label: 'Artists', to: '/artists' },
           ...(artist ? [{ label: artist.name ?? 'Unknown artist', to: `/artists/${artist.id}` }] : []),
           { label: title },
         ]}

@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/albums/recently-added": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieves the collection of Album resources.
+         * @description Retrieves the collection of Album resources.
+         */
+        get: operations["albums_recently_added"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/albums/{id}": {
         parameters: {
             query?: never;
@@ -852,6 +872,11 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            /**
+             * Format: date-time
+             * @description When a scan first found the album in the library (GET /api/albums/recently-added lists the latest first)
+             */
+            readonly addedAt?: string;
             artist?: components["schemas"]["Artist-album.read"];
             title?: string;
             year?: number | null;
@@ -885,6 +910,11 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            /**
+             * Format: date-time
+             * @description When a scan first found the album in the library (GET /api/albums/recently-added lists the latest first)
+             */
+            readonly addedAt?: string;
             artist?: components["schemas"]["Artist-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -918,6 +948,11 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            /**
+             * Format: date-time
+             * @description When a scan first found the album in the library (GET /api/albums/recently-added lists the latest first)
+             */
+            readonly addedAt?: string;
             artist?: components["schemas"]["Artist.jsonld-album.read"];
             title?: string;
             year?: number | null;
@@ -951,6 +986,11 @@ export interface components {
              * @default false
              */
             favourite?: boolean;
+            /**
+             * Format: date-time
+             * @description When a scan first found the album in the library (GET /api/albums/recently-added lists the latest first)
+             */
+            readonly addedAt?: string;
             artist?: components["schemas"]["Artist.jsonld-search.read_artist.read_album.read_track.read"];
             title?: string;
             year?: number | null;
@@ -2139,6 +2179,32 @@ export interface operations {
                 year?: string;
                 /** @description Release year */
                 "year[]"?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Album collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/ld+json": components["schemas"]["HydraCollectionBaseSchema"] & {
+                        member: components["schemas"]["Album.jsonld-album.read"][];
+                    };
+                    "application/json": components["schemas"]["Album-album.read"][];
+                };
+            };
+        };
+    };
+    albums_recently_added: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
             };
             header?: never;
             path?: never;

@@ -3,18 +3,39 @@ import { AlbumCard } from '../components/LibraryCards'
 import { QueryError } from '../components/QueryError'
 import { Spinner } from '../components/Spinner'
 import { plural } from '../library/format'
-import { useAlbums } from '../library/queries'
+import { timeAgo } from '../library/format'
+import { useAlbums, useRecentlyAddedAlbums } from '../library/queries'
 
-/** Every album of the library, with its artist, in the library's order: artist after artist, each one's by year. */
-export function AlbumsPage() {
-  const albums = useAlbums()
+/**
+ * Every album of the library, with its artist: in the library's order (artist after artist, each one's by year), or
+ * the most recently added first (`recent`: the home page).
+ */
+export function AlbumsPage({ recent = false }: { recent?: boolean }) {
+  return recent ? <RecentlyAddedAlbums /> : <AllAlbums />
+}
+
+function AllAlbums() {
+  return <AlbumList title="Albums" query={useAlbums()} />
+}
+
+function RecentlyAddedAlbums() {
+  return <AlbumList title="Recently added" query={useRecentlyAddedAlbums()} recent />
+}
+
+interface AlbumListProps {
+  title: string
+  query: ReturnType<typeof useAlbums> | ReturnType<typeof useRecentlyAddedAlbums>
+  recent?: boolean
+}
+
+function AlbumList({ title, query: albums, recent = false }: AlbumListProps) {
   const members = albums.data?.pages.flatMap((page) => page.member) ?? []
   const total = albums.data?.pages[0]?.totalItems
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Albums</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-sm text-neutral-400">{total !== undefined ? plural(total, 'album') : ' '}</p>
       </div>
 
@@ -32,6 +53,7 @@ export function AlbumsPage() {
             {members.map((album) => (
               <li key={album.id}>
                 <AlbumCard album={album} showArtist />
+                {recent && album.addedAt && <p className="text-xs text-neutral-500">Added {timeAgo(album.addedAt)}</p>}
               </li>
             ))}
           </ul>

@@ -24,7 +24,7 @@ export function ArtistPage() {
   if (artist.isLoadingError) {
     return (
       <main className="mx-auto w-full max-w-6xl px-4 py-6">
-        <Breadcrumbs items={[{ label: 'Artists', to: '/' }]} />
+        <Breadcrumbs items={[{ label: 'Artists', to: '/artists' }]} />
         <QueryError error={artist.error} retry={artist.refetch} notFound="This artist isn't in the library." />
       </main>
     )
@@ -34,7 +34,7 @@ export function ArtistPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
-      <Breadcrumbs items={[{ label: 'Artists', to: '/' }, { label: name }]} />
+      <Breadcrumbs items={[{ label: 'Artists', to: '/artists' }, { label: name }]} />
       <header className="mb-8 flex items-center gap-5 sm:gap-6">
         {artist.data && (
           <ArtistImage url={artist.data.coverUrl} name={name} className="w-24 shrink-0 text-4xl shadow-lg sm:w-36 sm:text-6xl" />

@@ -30,7 +30,12 @@ interface MockAlbum {
   title: string
   year: number | null
   cover: boolean
+  /** When a scan first found it (ISO 8601): GET /api/albums/recently-added lists the latest first. */
+  addedAt: string
 }
+
+/** How many days ago each album of the mock library was added: an order of its own, not the library's. */
+const ADDED_DAYS_AGO: Record<string, number> = { 'Ace of Spades': 1, Killer: 3, Breaker: 10, 'Balls to the Wall': 20 }
 
 interface MockPlaylist {
   id: string
@@ -219,7 +224,8 @@ export class MockApi {
       const artist = { id: id(n++), name, image }
       this.artists.push(artist)
       for (const [title, year, cover, titles] of albums) {
-        const album = { id: id(n++), artistId: artist.id, title, year, cover }
+        const addedAt = new Date(Date.now() - (ADDED_DAYS_AGO[title] ?? 30) * 86_400_000).toISOString()
+        const album = { id: id(n++), artistId: artist.id, title, year, cover, addedAt }
         this.albums.push(album)
         titles.forEach((trackTitle, index) => {
           this.tracks.push({ id: id(n++), albumId: album.id, artistId: artist.id, title: trackTitle, trackNumber: index + 1, hasLyrics: index % 2 === 0 })
@@ -255,6 +261,7 @@ export class MockApi {
       year: album.year,
       ...(album.cover ? { coverUrl: this.signed(`/api/albums/${album.id}/cover`) } : {}),
       favourite: this.favourites.album.includes(album.id),
+      addedAt: album.addedAt,
       ...(withArtist ? { artist: { '@id': `/api/artists/${artist.id}`, '@type': 'Artist', id: artist.id, name: artist.name } } : {}),
     }
   }
@@ -599,6 +606,10 @@ export class MockApi {
     if ((match = /^\/api\/artists\/([^/]+)$/.exec(path))) {
       const artist = this.artists.find((a) => a.id === match![1])
       return artist ? reply(200, this.artistJson(artist)) : notFound()
+    }
+    if (path === '/api/albums/recently-added') {
+      const albums = [...this.albums].sort((a, b) => b.addedAt.localeCompare(a.addedAt) || b.id.localeCompare(a.id))
+      return reply(200, this.collection('/api/albums/recently-added', albums.map((a) => this.albumJson(a)), page))
     }
     if (path === '/api/albums') {
       const artistId = url.searchParams.get('artist')?.split('/').pop()
