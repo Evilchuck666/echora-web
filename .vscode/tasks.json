@@ -1,4 +1,6 @@
 {
+  // The scripts of package.json, run through Bun. Those that need the API (Generate API types, the live end-to-end tests)
+  // expect it up in ../Echora (docker compose up --wait there).
   "version": "2.0.0",
   "tasks": [
     {
@@ -8,14 +10,21 @@
       "problemMatcher": []
     },
     {
-      // Background task: ready once Vite prints "ready in", so the debugger can open the browser after it.
+      // Runs on its own when the workspace opens, once VS Code may run automatic tasks (task.allowAutomaticTasks, a user
+      // setting that no workspace can change). Background task: ready once Vite prints "ready in", so the debugger
+      // ("Debug in Chrome") can open the browser; already running, the debugger uses it as it is.
       "label": "Dev server",
       "type": "shell",
       "command": "bun run dev",
       "isBackground": true,
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
       "problemMatcher": {
         "owner": "vite",
-        "pattern": { "regexp": "^\\b$" },
+        "pattern": {
+          "regexp": "^\\b$"
+        },
         "background": {
           "activatesOnStart": true,
           "beginsPattern": "VITE v",
@@ -24,10 +33,14 @@
       }
     },
     {
+      // Type check (tsc -b) and production build into dist/.
       "label": "Build",
       "type": "shell",
       "command": "bun run build",
-      "group": { "kind": "build", "isDefault": true },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
       "problemMatcher": ["$tsc"]
     },
     {
@@ -37,19 +50,36 @@
       "problemMatcher": ["$tsc"]
     },
     {
+      // The whole project in the Problems view, not only the open files: oxlint's one-line format, read by the matcher.
       "label": "Lint",
       "type": "shell",
-      "command": "bun run lint",
-      "problemMatcher": []
+      "command": "bun run lint --format unix",
+      "problemMatcher": {
+        "owner": "oxlint",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.+?):(\\d+):(\\d+): (.*) \\[(Error|Warning)/(.+)\\]$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4,
+          "severity": 5,
+          "code": 6
+        }
+      }
     },
     {
       "label": "Unit tests",
       "type": "shell",
       "command": "bun run test",
-      "group": { "kind": "test", "isDefault": true },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
       "problemMatcher": []
     },
     {
+      // Chromium and Firefox against the mock API (Firefox needs a sound server, see CLAUDE.md).
       "label": "End-to-end tests",
       "type": "shell",
       "command": "bun run test:e2e",
@@ -57,9 +87,32 @@
       "problemMatcher": []
     },
     {
+      // Skipped unless e2e/.env sets the credentials of an account (see e2e/.env.example).
+      "label": "End-to-end tests against the real API",
+      "type": "shell",
+      "command": "bun run test:e2e:live",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      // Serves dist/ (run "Build" first), passing /api to the local API.
+      "label": "Preview the production build",
+      "type": "shell",
+      "command": "bun run preview",
+      "problemMatcher": []
+    },
+    {
+      // Regenerates src/api/schema.d.ts from the local API. openapi-typescript runs on Node, which doesn't trust Caddy's
+      // local certificate authority: copy it out of the API's php container (into node_modules/.tmp/, git-ignored) and
+      // pass it to Node.
       "label": "Generate API types",
       "type": "shell",
-      "command": "bun run api:types",
+      "command": "mkdir -p node_modules/.tmp && docker compose --project-directory ../Echora cp php:/data/caddy/pki/authorities/local/root.crt node_modules/.tmp/caddy-root.crt && bun run api:types",
+      "options": {
+        "env": {
+          "NODE_EXTRA_CA_CERTS": "${workspaceFolder}/node_modules/.tmp/caddy-root.crt"
+        }
+      },
       "problemMatcher": []
     }
   ]

@@ -1,9 +1,17 @@
 {
+  // All of them are on Open VSX, so editors without Microsoft's marketplace (Code - OSS, VSCodium) can install them.
   "recommendations": [
+    // oxlint (.oxlintrc.json): diagnostics as you type and fixes on save
     "oxc.oxc-vscode",
+    // Tailwind CSS 4 (src/index.css and the className strings): completions, hovers, linting, the tailwindcss language
     "bradlc.vscode-tailwindcss",
+    // .editorconfig
     "editorconfig.editorconfig",
+    // Unit tests (Vitest, src/**/*.test.ts) in the Testing view
     "vitest.explorer",
-    "ms-playwright.playwright"
+    // End-to-end tests (Playwright, e2e/) in the Testing view
+    "ms-playwright.playwright",
+    // .github/workflows/
+    "github.vscode-github-actions"
   ]
 }

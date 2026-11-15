@@ -1,14 +1,23 @@
 {
-  // Project settings and recommended extensions live in .vscode/, so they also apply when opening the folder directly.
   "folders": [
     {
       "name": "Echora Web",
       "path": "."
     }
   ],
+  // The project is always opened through this file, which makes it a workspace: VS Code then applies only the
+  // folder-scoped settings (resource and language scopes) of .vscode/settings.json and ignores its window-scoped ones.
+  // Each setting lives in exactly one place, chosen by its scope: window-scoped ones here, the rest in
+  // .vscode/settings.json. The debug configuration, the tasks and the recommended extensions live in .vscode/ too
+  // (launch.json, tasks.json, extensions.json), so this file has no "launch", "tasks" or "extensions" section.
   "settings": {
-    // Window-wide settings in .vscode/settings.json don't apply when the project is opened through this file, so this
-    // one is repeated here: the Tailwind language mode, where @apply, @theme... aren't unknown at-rules for the CSS linter.
+    // Use the project's TypeScript (node_modules, 6.0: TypeScript 7 has no JavaScript API yet, see CLAUDE.md) instead of
+    // the one bundled with the editor, so both agree with `tsc -b`. The editor asks once whether to switch to it.
+    "js/ts.tsdk.path": "node_modules/typescript/lib",
+    "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+    // Tailwind CSS 4 directives in src/index.css (@import 'tailwindcss', @theme, @layer, @apply...) are valid in the
+    // Tailwind CSS language mode (bradlc.vscode-tailwindcss), where the built-in CSS linter doesn't flag them as unknown
+    // at-rules.
     "files.associations": {
       "*.css": "tailwindcss"
     }

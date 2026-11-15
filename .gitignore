@@ -1,30 +1,35 @@
-# Dependencies and build output
-node_modules
-dist
-dist-ssr
-
-# Local overrides (.env.local and friends)
-*.local
-
-# Logs
-logs
-*.log
+# Dependencies (bun install) and the production build (bun run build)
+/node_modules/
+/dist/
 
 # Lockfiles of other package managers: this project uses Bun (bun.lock)
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
 
-# Editors and OS (.vscode/ is shared on purpose)
-.idea
-.DS_Store
-*.sw?
+# Local overrides of .env and .env.production, which are tracked (Vite reads .env.local and .env.[mode].local)
+/.env.local
+/.env.*.local
+
+# Credentials of the live end-to-end tests (see e2e/.env.example)
+/e2e/.env
+
+# Playwright reports and results
+/playwright-report/
+/test-results/
+
+# VS Code: only the shared project files are tracked (these and echora-web.code-workspace). Extensions may write other
+# files here, some of them with credentials.
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/launch.json
+!/.vscode/settings.json
+!/.vscode/tasks.json
 
 # Personal Claude Code files
-CLAUDE.local.md
-.claude/settings.local.json
+/CLAUDE.local.md
+/.claude/settings.local.json
 
-# Tests: Playwright reports and results, live test credentials
-/playwright-report
-/test-results
-/e2e/.env
+# Operating system files
+.DS_Store
+Thumbs.db
