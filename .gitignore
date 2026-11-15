@@ -18,14 +18,6 @@ yarn.lock
 /playwright-report/
 /test-results/
 
-# VS Code: only the shared project files are tracked (these and echora-web.code-workspace). Extensions may write other
-# files here, some of them with credentials.
-/.vscode/*
-!/.vscode/extensions.json
-!/.vscode/launch.json
-!/.vscode/settings.json
-!/.vscode/tasks.json
-
 # Personal Claude Code files
 /CLAUDE.local.md
 /.claude/settings.local.json
