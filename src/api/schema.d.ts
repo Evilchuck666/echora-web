@@ -84,6 +84,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/albums/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to download to play the album offline
+         * @description Lists the tracks of the album, in order, each once, with a signed URL to its file (valid a day: `expiresAt`), its format, its size and where to save it (`savePath`), and the covers of their albums. Download the files one by one: they are served with byte ranges, so a download cut short resumes. With `format=opus`, FLAC tracks come converted to Opus (about a quarter of the size; the first download of a track waits for its conversion, and its size is null until then) and MP3 tracks as they are: `format` says what each file is.
+         */
+        get: operations["download_album"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/albums/{id}/favourite": {
         parameters: {
             query?: never;
@@ -180,6 +200,26 @@ export interface paths {
          * @description Returns a small square JPEG made from the image in the artist folder (artist or folder, in JPEG, PNG or WebP), or else from TheAudioDB (theaudiodb.com). Authenticate with a JWT, or call the coverUrl of the artist as is: it needs no Authorization header, so it can be the src of an <img>. It stays the same for a day, so browsers can cache it.
          */
         get: operations["get_artist_cover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/artists/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to download to play the artist offline
+         * @description Lists the tracks of the artist: their own albums, and their tracks on other artists' albums, in order, each once, with a signed URL to its file (valid a day: `expiresAt`), its format, its size and where to save it (`savePath`), and the covers of their albums. Download the files one by one: they are served with byte ranges, so a download cut short resumes. With `format=opus`, FLAC tracks come converted to Opus (about a quarter of the size; the first download of a track waits for its conversion, and its size is null until then) and MP3 tracks as they are: `format` says what each file is.
+         */
+        get: operations["download_artist"];
         put?: never;
         post?: never;
         delete?: never;
@@ -448,6 +488,26 @@ export interface paths {
         patch: operations["api_playlists_id_patch"];
         trace?: never;
     };
+    "/api/playlists/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to download to play the playlist offline
+         * @description Lists the tracks of the playlist, once each, and `items`, the track of each item in order (a track may come several times), to rebuild it. Someone else's playlist is a 404, in order, each once, with a signed URL to its file (valid a day: `expiresAt`), its format, its size and where to save it (`savePath`), and the covers of their albums. Download the files one by one: they are served with byte ranges, so a download cut short resumes. With `format=opus`, FLAC tracks come converted to Opus (about a quarter of the size; the first download of a track waits for its conversion, and its size is null until then) and MP3 tracks as they are: `format` says what each file is.
+         */
+        get: operations["download_playlist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/playlists/{id}/items": {
         parameters: {
             query?: never;
@@ -600,6 +660,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tracks/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What to download to play the track offline
+         * @description Lists the track, in order, each once, with a signed URL to its file (valid a day: `expiresAt`), its format, its size and where to save it (`savePath`), and the covers of their albums. Download the files one by one: they are served with byte ranges, so a download cut short resumes. With `format=opus`, FLAC tracks come converted to Opus (about a quarter of the size; the first download of a track waits for its conversion, and its size is null until then) and MP3 tracks as they are: `format` says what each file is.
+         */
+        get: operations["download_track"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tracks/{id}/favourite": {
         parameters: {
             query?: never;
@@ -619,6 +699,46 @@ export interface paths {
          * @description Idempotent: removing a favourite that is not there is not an error.
          */
         delete: operations["remove_favourite_track"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audio file as it is (FLAC or MP3), to download
+         * @description Use the `url` given by a download manifest: it carries a signature (valid a day) and needs no Authorization header.
+         */
+        get: operations["download_track_file_original"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tracks/{id}/file/opus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The audio of a FLAC track converted to Opus, to download
+         * @description Use the `url` given by a download manifest: it carries a signature (valid a day) and needs no Authorization header.
+         */
+        get: operations["download_track_file_opus"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2305,6 +2425,113 @@ export interface operations {
             };
         };
     };
+    download_album: {
+        parameters: {
+            query?: {
+                /** @description original (the files as they are, the default) or opus, e.g. while the client saves data */
+                format?: "original" | "opus";
+            };
+            header?: never;
+            path: {
+                /** @description Album identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What to download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "track" | "album" | "artist" | "playlist";
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Title of the track or album, name of the artist or playlist */
+                        name: string;
+                        /**
+                         * @description The format asked for
+                         * @enum {string}
+                         */
+                        format: "original" | "opus";
+                        /**
+                         * Format: date-time
+                         * @description When the URLs stop working: ask for the manifest again
+                         */
+                        expiresAt: string;
+                        trackCount: number;
+                        /** @description Bytes, of the files whose size is known */
+                        totalSize: number;
+                        /** @description False when some Opus files are not converted yet, so their size is unknown */
+                        totalSizeComplete: boolean;
+                        tracks: {
+                            /** Format: uuid */
+                            id?: string;
+                            title?: string;
+                            artist?: string;
+                            album?: string;
+                            discNumber?: number | null;
+                            trackNumber?: number | null;
+                            durationMs?: number | null;
+                            /**
+                             * @description What the file is
+                             * @enum {string}
+                             */
+                            format?: "flac" | "mp3" | "opus";
+                            mimeType?: string;
+                            /** @description Bytes; null for an Opus file not converted yet */
+                            size?: number | null;
+                            /**
+                             * @description Where to save it, relative, with names safe on every system
+                             * @example Test Artist/2020 - First Album/01 - Opening.flac
+                             */
+                            savePath?: string;
+                            /**
+                             * Format: uri
+                             * @description Signed URL of the file (GET /api/tracks/{id}/file or /file/opus)
+                             */
+                            url?: string;
+                        }[];
+                        covers: {
+                            /** Format: uuid */
+                            album?: string;
+                            /** @example Test Artist/2020 - First Album/cover.jpg */
+                            savePath?: string;
+                            /** Format: uri */
+                            url?: string;
+                        }[];
+                        /** @description Playlists only: the track of each item, in order */
+                        items?: string[];
+                    };
+                };
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The album does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     add_favourite_album: {
         parameters: {
             query?: never;
@@ -2501,6 +2728,113 @@ export interface operations {
             };
             /** @description The artist does not exist or has no image, or its image is missing or unreadable */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    download_artist: {
+        parameters: {
+            query?: {
+                /** @description original (the files as they are, the default) or opus, e.g. while the client saves data */
+                format?: "original" | "opus";
+            };
+            header?: never;
+            path: {
+                /** @description Artist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What to download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "track" | "album" | "artist" | "playlist";
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Title of the track or album, name of the artist or playlist */
+                        name: string;
+                        /**
+                         * @description The format asked for
+                         * @enum {string}
+                         */
+                        format: "original" | "opus";
+                        /**
+                         * Format: date-time
+                         * @description When the URLs stop working: ask for the manifest again
+                         */
+                        expiresAt: string;
+                        trackCount: number;
+                        /** @description Bytes, of the files whose size is known */
+                        totalSize: number;
+                        /** @description False when some Opus files are not converted yet, so their size is unknown */
+                        totalSizeComplete: boolean;
+                        tracks: {
+                            /** Format: uuid */
+                            id?: string;
+                            title?: string;
+                            artist?: string;
+                            album?: string;
+                            discNumber?: number | null;
+                            trackNumber?: number | null;
+                            durationMs?: number | null;
+                            /**
+                             * @description What the file is
+                             * @enum {string}
+                             */
+                            format?: "flac" | "mp3" | "opus";
+                            mimeType?: string;
+                            /** @description Bytes; null for an Opus file not converted yet */
+                            size?: number | null;
+                            /**
+                             * @description Where to save it, relative, with names safe on every system
+                             * @example Test Artist/2020 - First Album/01 - Opening.flac
+                             */
+                            savePath?: string;
+                            /**
+                             * Format: uri
+                             * @description Signed URL of the file (GET /api/tracks/{id}/file or /file/opus)
+                             */
+                            url?: string;
+                        }[];
+                        covers: {
+                            /** Format: uuid */
+                            album?: string;
+                            /** @example Test Artist/2020 - First Album/cover.jpg */
+                            savePath?: string;
+                            /** Format: uri */
+                            url?: string;
+                        }[];
+                        /** @description Playlists only: the track of each item, in order */
+                        items?: string[];
+                    };
+                };
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The artist does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown format */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3197,6 +3531,113 @@ export interface operations {
             };
         };
     };
+    download_playlist: {
+        parameters: {
+            query?: {
+                /** @description original (the files as they are, the default) or opus, e.g. while the client saves data */
+                format?: "original" | "opus";
+            };
+            header?: never;
+            path: {
+                /** @description Playlist identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What to download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "track" | "album" | "artist" | "playlist";
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Title of the track or album, name of the artist or playlist */
+                        name: string;
+                        /**
+                         * @description The format asked for
+                         * @enum {string}
+                         */
+                        format: "original" | "opus";
+                        /**
+                         * Format: date-time
+                         * @description When the URLs stop working: ask for the manifest again
+                         */
+                        expiresAt: string;
+                        trackCount: number;
+                        /** @description Bytes, of the files whose size is known */
+                        totalSize: number;
+                        /** @description False when some Opus files are not converted yet, so their size is unknown */
+                        totalSizeComplete: boolean;
+                        tracks: {
+                            /** Format: uuid */
+                            id?: string;
+                            title?: string;
+                            artist?: string;
+                            album?: string;
+                            discNumber?: number | null;
+                            trackNumber?: number | null;
+                            durationMs?: number | null;
+                            /**
+                             * @description What the file is
+                             * @enum {string}
+                             */
+                            format?: "flac" | "mp3" | "opus";
+                            mimeType?: string;
+                            /** @description Bytes; null for an Opus file not converted yet */
+                            size?: number | null;
+                            /**
+                             * @description Where to save it, relative, with names safe on every system
+                             * @example Test Artist/2020 - First Album/01 - Opening.flac
+                             */
+                            savePath?: string;
+                            /**
+                             * Format: uri
+                             * @description Signed URL of the file (GET /api/tracks/{id}/file or /file/opus)
+                             */
+                            url?: string;
+                        }[];
+                        covers: {
+                            /** Format: uuid */
+                            album?: string;
+                            /** @example Test Artist/2020 - First Album/cover.jpg */
+                            savePath?: string;
+                            /** Format: uri */
+                            url?: string;
+                        }[];
+                        /** @description Playlists only: the track of each item, in order */
+                        items?: string[];
+                    };
+                };
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The playlist does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     api_playlists_iditems_get_collection: {
         parameters: {
             query?: {
@@ -3618,6 +4059,113 @@ export interface operations {
             };
         };
     };
+    download_track: {
+        parameters: {
+            query?: {
+                /** @description original (the files as they are, the default) or opus, e.g. while the client saves data */
+                format?: "original" | "opus";
+            };
+            header?: never;
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What to download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        kind: "track" | "album" | "artist" | "playlist";
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Title of the track or album, name of the artist or playlist */
+                        name: string;
+                        /**
+                         * @description The format asked for
+                         * @enum {string}
+                         */
+                        format: "original" | "opus";
+                        /**
+                         * Format: date-time
+                         * @description When the URLs stop working: ask for the manifest again
+                         */
+                        expiresAt: string;
+                        trackCount: number;
+                        /** @description Bytes, of the files whose size is known */
+                        totalSize: number;
+                        /** @description False when some Opus files are not converted yet, so their size is unknown */
+                        totalSizeComplete: boolean;
+                        tracks: {
+                            /** Format: uuid */
+                            id?: string;
+                            title?: string;
+                            artist?: string;
+                            album?: string;
+                            discNumber?: number | null;
+                            trackNumber?: number | null;
+                            durationMs?: number | null;
+                            /**
+                             * @description What the file is
+                             * @enum {string}
+                             */
+                            format?: "flac" | "mp3" | "opus";
+                            mimeType?: string;
+                            /** @description Bytes; null for an Opus file not converted yet */
+                            size?: number | null;
+                            /**
+                             * @description Where to save it, relative, with names safe on every system
+                             * @example Test Artist/2020 - First Album/01 - Opening.flac
+                             */
+                            savePath?: string;
+                            /**
+                             * Format: uri
+                             * @description Signed URL of the file (GET /api/tracks/{id}/file or /file/opus)
+                             */
+                            url?: string;
+                        }[];
+                        covers: {
+                            /** Format: uuid */
+                            album?: string;
+                            /** @example Test Artist/2020 - First Album/cover.jpg */
+                            savePath?: string;
+                            /** Format: uri */
+                            url?: string;
+                        }[];
+                        /** @description Playlists only: the track of each item, in order */
+                        items?: string[];
+                    };
+                };
+            };
+            /** @description No valid JWT */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unknown format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     add_favourite_track: {
         parameters: {
             query?: never;
@@ -3680,6 +4228,100 @@ export interface operations {
                 content?: never;
             };
             /** @description The track does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    download_track_file_original: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Byte range to return, e.g. "bytes=1048576-", to resume */
+                Range?: string;
+            };
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file, as an attachment with a readable name (Content-Disposition) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/flac": string;
+                };
+            };
+            /** @description The byte range asked for in the Range header */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Neither a valid JWT nor a valid, unexpired signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist, or its file is missing */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    download_track_file_opus: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Byte range to return, e.g. "bytes=1048576-", to resume */
+                Range?: string;
+            };
+            path: {
+                /** @description Track identifier */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file, as an attachment with a readable name (Content-Disposition) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/ogg": string;
+                };
+            };
+            /** @description The byte range asked for in the Range header */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Neither a valid JWT nor a valid, unexpired signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The track does not exist, is not a FLAC file, or its file is missing */
             404: {
                 headers: {
                     [name: string]: unknown;
